@@ -74,14 +74,19 @@
                     </div>
 
                     <!-- Editor canvas -->
-                    <div x-show="currentImage" class="relative max-w-full max-h-full" :style="`transform: scale(${zoom/100})`">
-                        <!-- Original image for comparison -->
-                        <img x-show="showComparison && currentImage" :src="currentImage?.url"
-                            class="absolute inset-0 w-full h-full object-contain"
-                            :style="`clip-path: inset(0 ${100 - comparisonPosition}% 0 0)`">
-
+                    <div x-show="currentImage" class="relative select-none" :style="`transform: scale(${zoom/100})`">
                         <!-- Canvas for edited preview -->
-                        <canvas x-ref="canvas" class="max-w-full max-h-full" :class="{'opacity-50': isProcessing}"></canvas>
+                        <canvas x-ref="canvas" class="max-w-full max-h-[70vh] block select-none" :class="{'opacity-50': isProcessing}"></canvas>
+
+                        <!-- Original image for comparison (overlaid, clipped from right) -->
+                        <template x-if="showComparison && comparisonSrc">
+                            <div class="absolute top-0 left-0 overflow-hidden pointer-events-none h-full select-none"
+                                :style="`width: ${comparisonPosition}%`">
+                                <img :src="comparisonSrc"
+                                    class="max-w-none h-full select-none"
+                                    draggable="false">
+                            </div>
+                        </template>
 
                         <!-- Processing indicator -->
                         <div x-show="isProcessing" class="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -168,12 +173,30 @@
 
                         <div class="w-px h-6 bg-editor-border mx-2"></div>
 
-                        <button @click="resetAdjustments()" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors" title="Resetear">
+                        <!-- Undo/Redo -->
+                        <button @click="undo()" :disabled="undoStack.length === 0"
+                            :class="undoStack.length === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-editor-border'"
+                            class="p-2 bg-editor-surface-hover rounded-lg transition-colors" title="Deshacer (Ctrl+Z)">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                            </svg>
+                        </button>
+                        <button @click="redo()" :disabled="redoStack.length === 0"
+                            :class="redoStack.length === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-editor-border'"
+                            class="p-2 bg-editor-surface-hover rounded-lg transition-colors" title="Rehacer (Ctrl+Y)">
+                            <svg class="w-5 h-5 transform scale-x-[-1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                            </svg>
+                        </button>
+
+                        <div class="w-px h-6 bg-editor-border mx-2"></div>
+
+                        <button @click="resetAdjustments()" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors" title="Resetear (Delete)">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                             </svg>
                         </button>
-                        <button @click="saveVersion()" class="px-3 py-2 bg-editor-accent hover:bg-editor-accent-hover rounded-lg text-sm font-medium transition-colors">
+                        <button @click="saveVersion()" class="px-3 py-2 bg-editor-accent hover:bg-editor-accent-hover rounded-lg text-sm font-medium transition-colors" title="Guardar versión (Ctrl+S)">
                             Guardar versión
                         </button>
                     </div>
@@ -362,6 +385,9 @@
                 canvas: null,
                 ctx: null,
                 originalImageData: null,
+                comparisonSrc: null,
+                canvasWidth: 0,
+                canvasHeight: 0,
                 zoom: 100,
                 isProcessing: false,
 
@@ -381,6 +407,11 @@
                 // Debounce
                 applyTimeout: null,
 
+                // Undo/Redo
+                undoStack: [],
+                redoStack: [],
+                maxUndoSteps: 20,
+
                 // Adjustments
                 adjustments: {
                     brightness: 0,
@@ -391,6 +422,9 @@
                     shadows: 0,
                     highlights: 0,
                     vibrance: 0,
+                    vignette: 0,
+                    sharpness: 0,
+                    grain: 0,
                     rotation: 0,
                     flipH: false,
                     flipV: false,
@@ -407,6 +441,9 @@
                     shadows: { label: 'Sombras', min: -100, max: 100 },
                     highlights: { label: 'Iluminaciones', min: -100, max: 100 },
                     vibrance: { label: 'Intensidad', min: -100, max: 100 },
+                    vignette: { label: 'Viñeta', min: 0, max: 100 },
+                    sharpness: { label: 'Nitidez', min: 0, max: 100 },
+                    grain: { label: 'Grano', min: 0, max: 100 },
                 },
 
                 filters: [
@@ -416,6 +453,12 @@
                     { id: 'vintage', name: 'Vintage', icon: '📷' },
                     { id: 'cool', name: 'Frío', icon: '❄️' },
                     { id: 'warm', name: 'Cálido', icon: '🔥' },
+                    { id: 'clarendon', name: 'Clarendon', icon: '🌊' },
+                    { id: 'gingham', name: 'Gingham', icon: '🌸' },
+                    { id: 'moon', name: 'Moon', icon: '🌙' },
+                    { id: 'lark', name: 'Lark', icon: '🐦' },
+                    { id: 'reyes', name: 'Reyes', icon: '☀️' },
+                    { id: 'juno', name: 'Juno', icon: '🔶' },
                 ],
 
                 init() {
@@ -424,7 +467,97 @@
 
                     // Comparison drag events
                     document.addEventListener('mousemove', (e) => this.handleComparisonDrag(e));
-                    document.addEventListener('mouseup', () => this.isDraggingComparison = false);
+                    document.addEventListener('mouseup', () => this.stopComparisonDrag());
+
+                    // Keyboard shortcuts
+                    document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+                },
+
+                handleKeyboard(e) {
+                    if (!this.currentImage) return;
+
+                    // Ctrl/Cmd combinations
+                    if (e.ctrlKey || e.metaKey) {
+                        switch(e.key.toLowerCase()) {
+                            case 'z':
+                                e.preventDefault();
+                                if (e.shiftKey) this.redo();
+                                else this.undo();
+                                break;
+                            case 'y':
+                                e.preventDefault();
+                                this.redo();
+                                break;
+                            case 's':
+                                e.preventDefault();
+                                this.saveVersion();
+                                break;
+                            case 'e':
+                                e.preventDefault();
+                                this.showExportModal = true;
+                                break;
+                            case '0':
+                                e.preventDefault();
+                                this.zoom = 100;
+                                break;
+                        }
+                        return;
+                    }
+
+                    // Single key shortcuts
+                    switch(e.key.toLowerCase()) {
+                        case 'r':
+                            this.rotate(90);
+                            break;
+                        case 'h':
+                            this.flip('h');
+                            break;
+                        case 'v':
+                            this.flip('v');
+                            break;
+                        case 'c':
+                            this.toggleCropMode();
+                            break;
+                        case 'o':
+                            this.showComparison = !this.showComparison;
+                            break;
+                        case 'escape':
+                            if (this.cropMode) this.toggleCropMode();
+                            break;
+                        case '+':
+                        case '=':
+                            this.zoom = Math.min(200, this.zoom + 25);
+                            break;
+                        case '-':
+                            this.zoom = Math.max(25, this.zoom - 25);
+                            break;
+                        case 'backspace':
+                        case 'delete':
+                            if (!e.target.matches('input')) this.resetAdjustments();
+                            break;
+                    }
+                },
+
+                saveToUndoStack() {
+                    this.undoStack.push(JSON.stringify(this.adjustments));
+                    if (this.undoStack.length > this.maxUndoSteps) {
+                        this.undoStack.shift();
+                    }
+                    this.redoStack = [];
+                },
+
+                undo() {
+                    if (this.undoStack.length === 0) return;
+                    this.redoStack.push(JSON.stringify(this.adjustments));
+                    this.adjustments = JSON.parse(this.undoStack.pop());
+                    this.applyAdjustments();
+                },
+
+                redo() {
+                    if (this.redoStack.length === 0) return;
+                    this.undoStack.push(JSON.stringify(this.adjustments));
+                    this.adjustments = JSON.parse(this.redoStack.pop());
+                    this.applyAdjustments();
                 },
 
                 async selectImage(image) {
@@ -454,8 +587,11 @@
                             }
                             this.canvas.width = img.width;
                             this.canvas.height = img.height;
+                            this.canvasWidth = img.width;
+                            this.canvasHeight = img.height;
                             this.ctx.drawImage(img, 0, 0);
                             this.originalImageData = this.ctx.getImageData(0, 0, img.width, img.height);
+                            this.comparisonSrc = this.canvas.toDataURL('image/jpeg', 0.9);
                             resolve();
                         };
                         img.onerror = () => reject('Failed to load image');
@@ -474,10 +610,11 @@
                     }
                 },
 
-                debounceApply() {
+                debounceApply(saveUndo = true) {
                     this.isProcessing = true;
                     clearTimeout(this.applyTimeout);
                     this.applyTimeout = setTimeout(() => {
+                        if (saveUndo) this.saveToUndoStack();
                         requestAnimationFrame(() => this.applyAdjustments());
                     }, 100);
                 },
@@ -496,7 +633,9 @@
 
                     const data = imageData.data;
                     const len = data.length;
-                    const { brightness, contrast, saturation, exposure, temperature, shadows, highlights, vibrance } = this.adjustments;
+                    const width = imageData.width;
+                    const height = imageData.height;
+                    const { brightness, contrast, saturation, exposure, temperature, shadows, highlights, vibrance, vignette, grain } = this.adjustments;
 
                     // Pre-calculate factors
                     const brightnessFactor = brightness * 2.55;
@@ -506,6 +645,13 @@
                     const tempR = temperature * 0.5;
                     const tempB = -temperature * 0.5;
                     const vibAmt = vibrance / 100;
+                    const grainAmt = grain * 2.55;
+
+                    // Vignette pre-calculations
+                    const centerX = width / 2;
+                    const centerY = height / 2;
+                    const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
+                    const vignetteStrength = vignette / 100;
 
                     const filter = this.adjustments.filter;
 
@@ -575,6 +721,49 @@
                             r *= 0.9; b *= 1.1;
                         } else if (filter === 'warm') {
                             r *= 1.1; b *= 0.9;
+                        } else if (filter === 'clarendon') {
+                            // High contrast, saturated
+                            const gray = 0.2989 * r + 0.587 * g + 0.114 * b;
+                            r = gray + 1.3 * (r - gray); g = gray + 1.3 * (g - gray); b = gray + 1.3 * (b - gray);
+                            r *= 1.1; b *= 1.1;
+                        } else if (filter === 'gingham') {
+                            // Soft, slightly washed
+                            r = r * 0.9 + 25; g = g * 0.95 + 15; b = b * 0.95 + 20;
+                        } else if (filter === 'moon') {
+                            // Desaturated, cool
+                            const gray = 0.2989 * r + 0.587 * g + 0.114 * b;
+                            r = gray + 0.3 * (r - gray); g = gray + 0.3 * (g - gray); b = gray + 0.4 * (b - gray);
+                        } else if (filter === 'lark') {
+                            // Bright, desaturated slightly
+                            r *= 1.1; g *= 1.05; b *= 0.95;
+                            const gray = 0.2989 * r + 0.587 * g + 0.114 * b;
+                            r = gray + 0.85 * (r - gray); g = gray + 0.85 * (g - gray); b = gray + 0.85 * (b - gray);
+                        } else if (filter === 'reyes') {
+                            // Dusty, vintage warmth
+                            r = r * 0.85 + 40; g = g * 0.9 + 25; b = b * 0.85 + 10;
+                        } else if (filter === 'juno') {
+                            // Warm highlights, cool shadows
+                            const lum = (r + g + b) / 3;
+                            if (lum > 128) { r *= 1.1; g *= 1.05; }
+                            else { b *= 1.1; }
+                        }
+
+                        // Grain (noise)
+                        if (grain > 0) {
+                            const noise = (Math.random() - 0.5) * grainAmt;
+                            r += noise; g += noise; b += noise;
+                        }
+
+                        // Vignette (darken edges)
+                        if (vignette > 0) {
+                            const pixelIndex = i / 4;
+                            const x = pixelIndex % width;
+                            const y = Math.floor(pixelIndex / width);
+                            const dx = x - centerX;
+                            const dy = y - centerY;
+                            const dist = Math.sqrt(dx * dx + dy * dy) / maxDist;
+                            const vignetteFactor = 1 - (dist * dist * vignetteStrength);
+                            r *= vignetteFactor; g *= vignetteFactor; b *= vignetteFactor;
                         }
 
                         data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
@@ -583,6 +772,17 @@
                     }
 
                     this.ctx.putImageData(imageData, 0, 0);
+
+                    // Sharpness (using canvas filter for performance)
+                    if (this.adjustments.sharpness > 0) {
+                        const sharpAmt = this.adjustments.sharpness / 100;
+                        this.ctx.globalAlpha = sharpAmt * 0.5;
+                        this.ctx.globalCompositeOperation = 'hard-light';
+                        this.ctx.drawImage(this.canvas, 0, 0);
+                        this.ctx.globalAlpha = 1;
+                        this.ctx.globalCompositeOperation = 'source-over';
+                    }
+
                     this.isProcessing = false;
                 },
 
@@ -613,9 +813,12 @@
 
                         canvas.width = newWidth;
                         canvas.height = newHeight;
+                        this.canvasWidth = newWidth;
+                        this.canvasHeight = newHeight;
                         ctx.drawImage(tempCanvas, 0, 0);
 
                         this.originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        this.comparisonSrc = canvas.toDataURL('image/jpeg', 0.9);
                     }
                 },
 
@@ -643,6 +846,7 @@
                     ctx.restore();
 
                     this.originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    this.comparisonSrc = canvas.toDataURL('image/jpeg', 0.9);
                 },
 
                 toggleCropMode() {
@@ -683,8 +887,11 @@
                     const imageData = this.ctx.getImageData(crop.x, crop.y, crop.width, crop.height);
                     this.canvas.width = crop.width;
                     this.canvas.height = crop.height;
+                    this.canvasWidth = crop.width;
+                    this.canvasHeight = crop.height;
                     this.ctx.putImageData(imageData, 0, 0);
                     this.originalImageData = this.ctx.getImageData(0, 0, crop.width, crop.height);
+                    this.comparisonSrc = this.canvas.toDataURL('image/jpeg', 0.9);
                 },
 
                 resetAdjustments() {
@@ -742,14 +949,22 @@
 
                 // Comparison
                 startComparisonDrag(e) {
+                    e.preventDefault();
                     this.isDraggingComparison = true;
+                    document.body.style.userSelect = 'none';
                 },
 
                 handleComparisonDrag(e) {
                     if (!this.isDraggingComparison) return;
+                    e.preventDefault();
                     const container = document.getElementById('canvas-container');
                     const rect = container.getBoundingClientRect();
                     this.comparisonPosition = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
+                },
+
+                stopComparisonDrag() {
+                    this.isDraggingComparison = false;
+                    document.body.style.userSelect = '';
                 },
 
                 // File handling
