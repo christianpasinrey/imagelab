@@ -120,7 +120,9 @@ class ImageController extends Controller
         }
 
         // Attempt to load the image with GD to verify it's not corrupted
+        // Also strip EXIF metadata for privacy (GPS location, device info, etc.)
         $imageResource = null;
+        $cleanFilePath = null;
         try {
             switch ($imageInfo[2]) {
                 case IMAGETYPE_JPEG:
@@ -141,11 +143,16 @@ class ImageController extends Controller
                 return response()->json(['error' => 'La imagen está corrupta o no se puede procesar'], 422);
             }
 
-            // Image is valid, free memory
+            // Strip EXIF by re-saving the image (GD doesn't preserve metadata)
+            $cleanFilePath = $this->stripExifMetadata($imageResource, $imageInfo[2], $filePath);
+
             imagedestroy($imageResource);
         } catch (\Throwable $e) {
             return response()->json(['error' => 'Error al validar la imagen: ' . $e->getMessage()], 422);
         }
+
+        // Use clean file if available, otherwise fallback to original
+        $fileToSave = $cleanFilePath && file_exists($cleanFilePath) ? $cleanFilePath : $filePath;
 
         // Sanitize filename - remove any path traversal attempts
         $originalName = $file->getClientOriginalName();
@@ -179,8 +186,13 @@ class ImageController extends Controller
             'original_filename' => $originalName,
         ]);
 
-        $image->addMedia($file)
+        $image->addMedia($fileToSave)
             ->toMediaCollection('original');
+
+        // Clean up temp file if we created one
+        if ($cleanFilePath && file_exists($cleanFilePath) && $cleanFilePath !== $filePath) {
+            @unlink($cleanFilePath);
+        }
 
         $image->editHistories()->create([
             'adjustments' => EditHistory::getDefaultAdjustments(),
@@ -412,6 +424,70 @@ class ImageController extends Controller
             'success' => true,
             'image' => $this->formatImageResponse($image->fresh(), $sessionId),
         ]);
+    }
+
+    /**
+     * Strip EXIF metadata from image for privacy (removes GPS, device info, etc.)
+     * Returns path to clean file, or null on failure (fallback to original)
+     */
+    private function stripExifMetadata($imageResource, int $imageType, string $originalPath): ?string
+    {
+        try {
+            $tempDir = storage_path('app' . DIRECTORY_SEPARATOR . 'temp');
+            if (!is_dir($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            $cleanPath = $tempDir . DIRECTORY_SEPARATOR . 'clean_' . Str::random(16);
+
+            // Re-save without EXIF (GD doesn't preserve metadata)
+            switch ($imageType) {
+                case IMAGETYPE_JPEG:
+                    $cleanPath .= '.jpg';
+                    // Preserve quality
+                    if (!@imagejpeg($imageResource, $cleanPath, 95)) {
+                        return null;
+                    }
+                    break;
+
+                case IMAGETYPE_PNG:
+                    $cleanPath .= '.png';
+                    // Preserve alpha
+                    imagesavealpha($imageResource, true);
+                    if (!@imagepng($imageResource, $cleanPath, 6)) {
+                        return null;
+                    }
+                    break;
+
+                case IMAGETYPE_GIF:
+                    $cleanPath .= '.gif';
+                    if (!@imagegif($imageResource, $cleanPath)) {
+                        return null;
+                    }
+                    break;
+
+                case IMAGETYPE_WEBP:
+                    $cleanPath .= '.webp';
+                    if (!@imagewebp($imageResource, $cleanPath, 95)) {
+                        return null;
+                    }
+                    break;
+
+                default:
+                    return null;
+            }
+
+            // Verify file was created and is valid
+            if (!file_exists($cleanPath) || filesize($cleanPath) === 0) {
+                @unlink($cleanPath);
+                return null;
+            }
+
+            return $cleanPath;
+        } catch (\Throwable $e) {
+            // Silently fail - will use original file as fallback
+            return null;
+        }
     }
 
     private function formatImageResponse(Image $image, ?string $sessionId = null): array
