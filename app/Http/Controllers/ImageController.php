@@ -96,10 +96,8 @@ class ImageController extends Controller
         $request->validate([
             'image' => [
                 'required',
-                'image',
+                'file',
                 'max:20480', // 20MB
-                'mimes:jpeg,jpg,png,gif,webp',
-                'dimensions:max_width=8000,max_height=8000',
             ],
             'title' => 'nullable|string|max:255',
             'tags' => 'nullable|string|max:500',
