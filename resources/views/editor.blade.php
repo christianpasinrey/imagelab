@@ -81,7 +81,17 @@
                             :style="`clip-path: inset(0 ${100 - comparisonPosition}% 0 0)`">
 
                         <!-- Canvas for edited preview -->
-                        <canvas x-ref="canvas" class="max-w-full max-h-full"></canvas>
+                        <canvas x-ref="canvas" class="max-w-full max-h-full" :class="{'opacity-50': isProcessing}"></canvas>
+
+                        <!-- Processing indicator -->
+                        <div x-show="isProcessing" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div class="bg-editor-surface/80 rounded-full p-3">
+                                <svg class="animate-spin w-6 h-6 text-editor-accent" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </div>
+                        </div>
 
                         <!-- Comparison slider -->
                         <div x-show="showComparison"
@@ -353,6 +363,7 @@
                 ctx: null,
                 originalImageData: null,
                 zoom: 100,
+                isProcessing: false,
 
                 // Comparison
                 showComparison: false,
@@ -464,15 +475,18 @@
                 },
 
                 debounceApply() {
+                    this.isProcessing = true;
                     clearTimeout(this.applyTimeout);
                     this.applyTimeout = setTimeout(() => {
                         requestAnimationFrame(() => this.applyAdjustments());
-                    }, 150);
+                    }, 100);
                 },
 
                 applyAdjustments() {
-                    if (!this.originalImageData || this.isProcessing) return;
-                    this.isProcessing = true;
+                    if (!this.originalImageData) {
+                        this.isProcessing = false;
+                        return;
+                    }
 
                     const imageData = new ImageData(
                         new Uint8ClampedArray(this.originalImageData.data),
@@ -493,97 +507,83 @@
                     const tempB = -temperature * 0.5;
                     const vibAmt = vibrance / 100;
 
-                    for (let i = 0; i < data.length; i += 4) {
-                        let r = data[i];
-                        let g = data[i + 1];
-                        let b = data[i + 2];
+                    const filter = this.adjustments.filter;
 
-                        // Brightness
-                        r += brightness * 2.55;
-                        g += brightness * 2.55;
-                        b += brightness * 2.55;
+                    for (let i = 0; i < len; i += 4) {
+                        let r = data[i] + brightnessFactor;
+                        let g = data[i + 1] + brightnessFactor;
+                        let b = data[i + 2] + brightnessFactor;
 
                         // Contrast
-                        const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
-                        r = factor * (r - 128) + 128;
-                        g = factor * (g - 128) + 128;
-                        b = factor * (b - 128) + 128;
-
-                        // Exposure (gamma)
-                        if (exposure !== 0) {
-                            const gamma = 1 + (exposure / 100);
-                            r = 255 * Math.pow(r / 255, 1 / gamma);
-                            g = 255 * Math.pow(g / 255, 1 / gamma);
-                            b = 255 * Math.pow(b / 255, 1 / gamma);
-                        }
+                        r = contrastFactor * (r - 128) + 128;
+                        g = contrastFactor * (g - 128) + 128;
+                        b = contrastFactor * (b - 128) + 128;
 
                         // Temperature
-                        if (temperature !== 0) {
-                            r += temperature * 0.5;
-                            b -= temperature * 0.5;
-                        }
+                        r += tempR;
+                        b += tempB;
 
                         // Saturation
                         if (saturation !== 0) {
                             const gray = 0.2989 * r + 0.587 * g + 0.114 * b;
-                            const sat = 1 + (saturation / 100);
-                            r = gray + sat * (r - gray);
-                            g = gray + sat * (g - gray);
-                            b = gray + sat * (b - gray);
+                            r = gray + satFactor * (r - gray);
+                            g = gray + satFactor * (g - gray);
+                            b = gray + satFactor * (b - gray);
                         }
 
-                        // Shadows/Highlights
-                        const luminance = (r + g + b) / 3;
-                        if (luminance < 128 && shadows !== 0) {
-                            const shadowFactor = 1 + (shadows / 100) * (1 - luminance / 128);
-                            r *= shadowFactor;
-                            g *= shadowFactor;
-                            b *= shadowFactor;
+                        // Exposure
+                        if (exposure !== 0) {
+                            r = 255 * Math.pow(Math.max(0, r) / 255, gamma);
+                            g = 255 * Math.pow(Math.max(0, g) / 255, gamma);
+                            b = 255 * Math.pow(Math.max(0, b) / 255, gamma);
                         }
-                        if (luminance > 128 && highlights !== 0) {
-                            const highlightFactor = 1 + (highlights / 100) * ((luminance - 128) / 128);
-                            r *= highlightFactor;
-                            g *= highlightFactor;
-                            b *= highlightFactor;
+
+                        // Shadows & Highlights
+                        if (shadows !== 0 || highlights !== 0) {
+                            const lum = (r + g + b) / 3;
+                            if (lum < 128 && shadows !== 0) {
+                                const sf = 1 + (shadows / 100) * (1 - lum / 128);
+                                r *= sf; g *= sf; b *= sf;
+                            }
+                            if (lum >= 128 && highlights !== 0) {
+                                const hf = 1 + (highlights / 100) * ((lum - 128) / 128);
+                                r *= hf; g *= hf; b *= hf;
+                            }
                         }
 
                         // Vibrance
                         if (vibrance !== 0) {
-                            const max = Math.max(r, g, b);
+                            const maxC = Math.max(r, g, b);
                             const avg = (r + g + b) / 3;
-                            const amt = ((Math.abs(max - avg) * 2 / 255) * vibrance) / 100;
-                            r += (max - r) * amt;
-                            g += (max - g) * amt;
-                            b += (max - b) * amt;
+                            const amt = ((Math.abs(maxC - avg) * 2 / 255) * vibAmt);
+                            r += (maxC - r) * amt;
+                            g += (maxC - g) * amt;
+                            b += (maxC - b) * amt;
                         }
 
-                        // Apply filter
-                        if (this.adjustments.filter === 'bw') {
-                            const gray = 0.2989 * r + 0.587 * g + 0.114 * b;
-                            r = g = b = gray;
-                        } else if (this.adjustments.filter === 'sepia') {
+                        // Filter
+                        if (filter === 'bw') {
+                            r = g = b = 0.2989 * r + 0.587 * g + 0.114 * b;
+                        } else if (filter === 'sepia') {
                             const tr = 0.393 * r + 0.769 * g + 0.189 * b;
                             const tg = 0.349 * r + 0.686 * g + 0.168 * b;
                             const tb = 0.272 * r + 0.534 * g + 0.131 * b;
                             r = tr; g = tg; b = tb;
-                        } else if (this.adjustments.filter === 'vintage') {
-                            r = r * 0.9 + 30;
-                            g = g * 0.85 + 20;
-                            b = b * 0.7;
-                        } else if (this.adjustments.filter === 'cool') {
-                            r *= 0.9;
-                            b *= 1.1;
-                        } else if (this.adjustments.filter === 'warm') {
-                            r *= 1.1;
-                            b *= 0.9;
+                        } else if (filter === 'vintage') {
+                            r = r * 0.9 + 30; g = g * 0.85 + 20; b = b * 0.7;
+                        } else if (filter === 'cool') {
+                            r *= 0.9; b *= 1.1;
+                        } else if (filter === 'warm') {
+                            r *= 1.1; b *= 0.9;
                         }
 
-                        data[i] = Math.min(255, Math.max(0, r));
-                        data[i + 1] = Math.min(255, Math.max(0, g));
-                        data[i + 2] = Math.min(255, Math.max(0, b));
+                        data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
+                        data[i + 1] = g < 0 ? 0 : g > 255 ? 255 : g;
+                        data[i + 2] = b < 0 ? 0 : b > 255 ? 255 : b;
                     }
 
                     this.ctx.putImageData(imageData, 0, 0);
+                    this.isProcessing = false;
                 },
 
                 applyFilter(filterId) {
