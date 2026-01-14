@@ -197,7 +197,7 @@
                     </svg>
                     Subir Imagen
                 </button>
-                <button @click="showExportModal = true" x-show="currentImage"
+                <button @click="showExportModal = true" x-show="currentImage || sourceImage"
                     class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all glass-card hover:border-purple-500/50" style="color: rgba(255,255,255,0.8);">
                     Exportar
                 </button>
@@ -275,7 +275,7 @@
                 <!-- Canvas Container -->
                 <div class="flex-1 flex items-center justify-center p-4 overflow-hidden relative" id="canvas-container">
                     <!-- Empty state -->
-                    <div x-show="!currentImage" class="text-center">
+                    <div x-show="!currentImage && !sourceImage" class="text-center">
                         <div class="w-24 h-24 mx-auto mb-4 rounded-full bg-editor-surface flex items-center justify-center">
                             <svg class="w-12 h-12 text-editor-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
@@ -285,7 +285,7 @@
                     </div>
 
                     <!-- Editor canvas -->
-                    <div x-show="currentImage" class="relative select-none" :style="`transform: scale(${zoom/100})`">
+                    <div x-show="currentImage || sourceImage" class="relative select-none" :style="`transform: scale(${zoom/100})`">
                         <!-- Canvas for edited preview -->
                         <canvas x-ref="canvas"
                             class="max-w-full max-h-[70vh] block select-none"
@@ -327,7 +327,7 @@
                 </div>
 
                 <!-- Bottom Toolbar -->
-                <div x-show="currentImage" class="bg-editor-surface border-t border-editor-border px-4 py-2 flex items-center justify-between">
+                <div x-show="currentImage || sourceImage" class="bg-editor-surface border-t border-editor-border px-4 py-2 flex items-center justify-between">
                     <div class="flex items-center gap-4">
                         <!-- Comparison Toggle -->
                         <label class="flex items-center gap-2 cursor-pointer">
@@ -418,7 +418,7 @@
             </main>
 
             <!-- Right Panel - Adjustments -->
-            <aside x-show="currentImage" class="w-72 bg-editor-surface border-l border-editor-border flex flex-col overflow-hidden">
+            <aside x-show="currentImage || sourceImage" class="w-72 bg-editor-surface border-l border-editor-border flex flex-col overflow-hidden">
                 <!-- Tabs -->
                 <div class="flex border-b border-editor-border">
                     <button @click="activeTab = 'adjustments'"
