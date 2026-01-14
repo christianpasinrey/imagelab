@@ -147,7 +147,7 @@
     <div class="container">
         <header>
             <a href="/" class="logo">
-                <img src="/img/wallrd_logo.png" alt="Wallrd" style="height: 36px; width: auto;">
+                <img src="/img/wallrd_logo.png" alt="Wallrd" style="height: 48px; width: auto;">
             </a>
             <h1>Política de Privacidad</h1>
             <p class="updated">Última actualización: Enero 2026</p>

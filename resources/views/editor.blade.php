@@ -190,8 +190,8 @@
         <header class="glass-panel border-b px-5 py-3 flex items-center justify-between">
             <div class="flex items-center gap-4">
                 <!-- Logo/Home Link -->
-                <a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                    <img src="/img/wallrd_logo.png" alt="Wallrd" class="h-10 w-auto">
+                <a href="/" class="flex items-center hover:opacity-80 transition-opacity">
+                    <img src="/img/wallrd_logo.png" alt="Wallrd" class="h-12 w-auto">
                 </a>
 
                 <!-- Current Image Info -->

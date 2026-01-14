@@ -446,7 +446,7 @@
     <header>
         <div class="header-inner">
             <a href="/" class="logo">
-                <img src="/img/wallrd_logo.png" alt="Wallrd" style="height: 40px; width: auto;">
+                <img src="/img/wallrd_logo.png" alt="Wallrd" style="height: 56px; width: auto;">
             </a>
             <a href="/editor" class="btn-upload">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
