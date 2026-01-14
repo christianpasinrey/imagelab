@@ -7,21 +7,58 @@
     <title>ImageLab - Editor de Imágenes</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .btn-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .btn-gradient:hover {
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+        }
+    </style>
 </head>
 <body class="bg-editor-bg text-editor-text min-h-screen">
     <div x-data="imageEditor()" x-init="init()" class="h-screen flex flex-col">
         <!-- Header -->
-        <header class="bg-editor-surface border-b border-editor-border px-4 py-3 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <h1 class="text-xl font-semibold">ImageLab</h1>
-                <span class="text-editor-text-muted text-sm" x-show="currentImage" x-text="currentImage?.name"></span>
+        <header style="background: rgba(9,9,11,0.8); backdrop-filter: blur(12px);" class="border-b border-editor-border px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <!-- Logo/Home Link -->
+                <a href="/" class="flex items-center gap-2.5 text-decoration-none hover:opacity-80 transition-opacity">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">
+                        <svg width="18" height="18" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <span class="text-lg font-semibold tracking-tight">ImageLab</span>
+                </a>
+
+                <!-- Current Image Info -->
+                <template x-if="currentImage">
+                    <div class="flex items-center gap-2 text-sm text-editor-text-muted">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <span x-text="currentImage?.title || currentImage?.name"></span>
+                        <template x-if="canEdit">
+                            <span class="px-2 py-0.5 text-xs rounded-full bg-green-500/20 text-green-400">Editable</span>
+                        </template>
+                    </div>
+                </template>
             </div>
             <div class="flex items-center gap-2">
                 <button @click="showUploadModal = true"
-                    class="px-4 py-2 bg-editor-accent hover:bg-editor-accent-hover rounded-lg text-sm font-medium transition-colors">
+                    class="btn-gradient px-4 py-2 rounded-lg text-sm font-medium transition-all hover:scale-[1.02] flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                    </svg>
                     Subir Imagen
                 </button>
                 <button @click="showExportModal = true" x-show="currentImage"
@@ -34,29 +71,65 @@
         <!-- Main Content -->
         <div class="flex-1 flex overflow-hidden">
             <!-- Sidebar - Gallery -->
-            <aside class="w-48 bg-editor-surface border-r border-editor-border flex flex-col">
+            <aside class="w-52 bg-editor-surface border-r border-editor-border flex flex-col">
+                <!-- My Images Section -->
                 <div class="p-3 border-b border-editor-border">
-                    <h2 class="text-sm font-medium text-editor-text-muted">Galería</h2>
+                    <h2 class="text-xs font-semibold text-editor-text-muted uppercase tracking-wider">Mis imágenes</h2>
                 </div>
                 <div class="flex-1 overflow-y-auto p-2 space-y-2">
                     <template x-for="image in images" :key="image.id">
                         <div @click="selectImage(image)"
-                            :class="{'ring-2 ring-editor-accent': currentImage?.id === image.id}"
+                            :class="{'ring-2 ring-purple-500': currentImage?.id === image.id}"
                             class="cursor-pointer rounded-lg overflow-hidden bg-editor-bg hover:ring-2 hover:ring-editor-border transition-all group relative">
-                            <img :src="image.thumb || image.url" :alt="image.name"
-                                class="w-full h-24 object-cover">
+                            <img :src="image.thumb || image.preview || image.url" :alt="image.title || image.name"
+                                class="w-full h-28 object-cover">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div class="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <p class="text-xs font-medium truncate" x-text="image.title || image.name"></p>
+                            </div>
                             <button @click.stop="deleteImage(image.id)"
-                                class="absolute top-1 right-1 p-1 bg-red-500/80 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                class="absolute top-1.5 right-1.5 p-1 bg-red-500/90 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                 </svg>
                             </button>
                         </div>
                     </template>
-                    <div x-show="images.length === 0" class="text-center py-8 text-editor-text-muted text-sm">
+                    <div x-show="images.length === 0" class="text-center py-8 text-editor-text-muted text-xs">
+                        <svg class="w-10 h-10 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
                         No hay imágenes.<br>Sube una para empezar.
                     </div>
                 </div>
+
+                <!-- Image Info (when selected and editable) -->
+                <template x-if="currentImage && canEdit">
+                    <div class="border-t border-editor-border p-3 space-y-3">
+                        <div>
+                            <label class="block text-xs font-medium text-editor-text-muted mb-1">Título</label>
+                            <input type="text"
+                                x-model="editTitle"
+                                @blur="updateImageMeta()"
+                                @keydown.enter="updateImageMeta()"
+                                class="w-full bg-editor-bg border border-editor-border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-editor-text-muted mb-1">Tags (separados por coma)</label>
+                            <input type="text"
+                                x-model="editTags"
+                                @blur="updateImageMeta()"
+                                @keydown.enter="updateImageMeta()"
+                                placeholder="foto, retrato, paisaje..."
+                                class="w-full bg-editor-bg border border-editor-border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500">
+                        </div>
+                        <div class="flex flex-wrap gap-1" x-show="currentImage.tags && currentImage.tags.length > 0">
+                            <template x-for="tag in currentImage.tags" :key="tag">
+                                <span class="px-2 py-0.5 text-xs rounded-full bg-purple-500/20 text-purple-300" x-text="tag"></span>
+                            </template>
+                        </div>
+                    </div>
+                </template>
             </aside>
 
             <!-- Canvas Area -->
@@ -484,26 +557,49 @@
             x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
             class="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
             <div @click.outside="showUploadModal = false"
-                class="bg-editor-surface rounded-xl p-6 w-full max-w-md shadow-2xl">
-                <h2 class="text-lg font-semibold mb-4">Subir Imagen</h2>
+                class="bg-editor-surface rounded-xl p-6 w-full max-w-md shadow-2xl border border-editor-border">
+                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg btn-gradient flex items-center justify-center">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                        </svg>
+                    </div>
+                    Subir Imagen
+                </h2>
                 <div @dragover.prevent="dragOver = true" @dragleave.prevent="dragOver = false"
                     @drop.prevent="handleDrop($event)"
-                    :class="dragOver ? 'border-editor-accent bg-editor-accent/10' : 'border-editor-border'"
+                    :class="dragOver ? 'border-purple-500 bg-purple-500/10' : 'border-editor-border'"
                     class="border-2 border-dashed rounded-xl p-8 text-center transition-colors">
                     <input type="file" accept="image/*" @change="handleFileSelect($event)" class="hidden" x-ref="fileInput">
                     <svg class="w-12 h-12 mx-auto mb-4 text-editor-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
-                    <p class="text-editor-text-muted mb-2">Arrastra una imagen aquí o</p>
+                    <p class="text-editor-text-muted mb-3">Arrastra una imagen aquí o</p>
                     <button @click="$refs.fileInput.click()"
-                        class="px-4 py-2 bg-editor-accent hover:bg-editor-accent-hover rounded-lg text-sm font-medium transition-colors">
+                        class="btn-gradient px-5 py-2.5 rounded-lg text-sm font-medium transition-all hover:scale-[1.02]">
                         Seleccionar archivo
                     </button>
                 </div>
+
+                <!-- Optional: Title and Tags for new upload -->
+                <div class="mt-4 space-y-3" x-show="!uploading">
+                    <div>
+                        <label class="block text-xs font-medium text-editor-text-muted mb-1">Título (opcional)</label>
+                        <input type="text" x-model="uploadTitle" placeholder="Mi imagen..."
+                            class="w-full bg-editor-bg border border-editor-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-editor-text-muted mb-1">Tags (opcional, separados por coma)</label>
+                        <input type="text" x-model="uploadTags" placeholder="foto, retrato, paisaje..."
+                            class="w-full bg-editor-bg border border-editor-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500">
+                    </div>
+                </div>
+
                 <div x-show="uploading" class="mt-4">
                     <div class="h-2 bg-editor-bg rounded-full overflow-hidden">
-                        <div class="h-full bg-editor-accent transition-all" :style="`width: ${uploadProgress}%`"></div>
+                        <div class="h-full btn-gradient transition-all" :style="`width: ${uploadProgress}%`"></div>
                     </div>
+                    <p class="text-xs text-editor-text-muted mt-2 text-center">Subiendo imagen...</p>
                 </div>
             </div>
         </div>
@@ -601,11 +697,17 @@
         function imageEditor() {
             return {
                 // State
-                images: @json($images),
-                currentImage: null,
+                images: @json($myImages ?? []),
+                currentImage: @json($currentImage),
+                canEdit: @json($canEdit ?? false),
+                sessionId: @json($sessionId ?? ''),
                 history: [],
                 activeTab: 'adjustments',
                 loading: false,
+
+                // Edit metadata
+                editTitle: '',
+                editTags: '',
 
                 // Modals
                 showUploadModal: false,
@@ -613,6 +715,8 @@
                 uploading: false,
                 uploadProgress: 0,
                 dragOver: false,
+                uploadTitle: '',
+                uploadTags: '',
 
                 // Toasts
                 toasts: [],
@@ -768,6 +872,54 @@
 
                     // Keyboard shortcuts
                     document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+
+                    // Load current image if passed from controller (viewing an existing image)
+                    if (this.currentImage) {
+                        this.$nextTick(async () => {
+                            this.canvas = this.$refs.canvas;
+                            this.ctx = this.canvas?.getContext('2d');
+                            if (this.canvas && this.ctx) {
+                                await this.loadImageToCanvas(this.currentImage.url);
+                            }
+                            this.editTitle = this.currentImage.title || this.currentImage.name || '';
+                            this.editTags = (this.currentImage.tags || []).join(', ');
+                            await this.fetchHistory();
+                        });
+                    }
+                },
+
+                // Update image metadata (title, tags)
+                async updateImageMeta() {
+                    if (!this.currentImage || !this.canEdit) return;
+
+                    try {
+                        const res = await fetch(`/images/${this.currentImage.id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            },
+                            body: JSON.stringify({
+                                title: this.editTitle,
+                                tags: this.editTags,
+                            }),
+                        });
+
+                        if (res.ok) {
+                            const data = await res.json();
+                            // Update current image with new data
+                            this.currentImage = data.image;
+                            // Update in the images list too
+                            const index = this.images.findIndex(img => img.id === this.currentImage.id);
+                            if (index !== -1) {
+                                this.images[index] = data.image;
+                            }
+                            this.showToast('Información actualizada', 'success');
+                        }
+                    } catch (e) {
+                        console.error('Error updating image:', e);
+                        this.showToast('Error al actualizar', 'error');
+                    }
                 },
 
                 handleKeyboard(e) {
@@ -865,6 +1017,9 @@
 
                 async selectImage(image) {
                     this.currentImage = image;
+                    this.canEdit = image.can_edit || false;
+                    this.editTitle = image.title || image.name || '';
+                    this.editTags = (image.tags || []).join(', ');
                     this.resetAdjustments();
 
                     // Wait for DOM update then load image
@@ -1717,6 +1872,8 @@
 
                         if (res.ok) {
                             const data = await res.json();
+                            // New uploads are always editable (same session)
+                            data.image.can_edit = true;
                             this.images.unshift(data.image);
                             this.selectImage(data.image);
                             this.showUploadModal = false;
