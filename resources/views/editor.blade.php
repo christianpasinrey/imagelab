@@ -646,6 +646,7 @@
                                 Limpiar
                             </button>
                         </div>
+
                     </div>
 
                     <!-- History Tab -->
