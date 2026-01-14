@@ -19,25 +19,43 @@ class ImageController extends Controller
     // Public gallery
     public function gallery(Request $request): View
     {
+        // Validate and sanitize search inputs
+        $request->validate([
+            'q' => 'nullable|string|max:100',
+            'tag' => 'nullable|string|max:50',
+        ]);
+
         $query = Image::with('media')->latest();
 
-        // Search by title or tags
+        // Search by title or tags (Eloquent protects against SQL injection)
         if ($search = $request->get('q')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('name', 'like', "%{$search}%")
-                  ->orWhereJsonContains('tags', $search);
-            });
+            // Sanitize: remove special chars that could cause issues
+            $search = preg_replace('/[^\p{L}\p{N}\s\-_]/u', '', $search);
+            $search = trim(substr($search, 0, 100));
+
+            if (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('title', 'like', '%' . $search . '%')
+                      ->orWhere('name', 'like', '%' . $search . '%')
+                      ->orWhereJsonContains('tags', $search);
+                });
+            }
         }
 
         // Filter by tag
         if ($tag = $request->get('tag')) {
-            $query->whereJsonContains('tags', $tag);
+            // Sanitize tag
+            $tag = preg_replace('/[^\p{L}\p{N}\s\-_]/u', '', $tag);
+            $tag = trim(substr($tag, 0, 50));
+
+            if (!empty($tag)) {
+                $query->whereJsonContains('tags', $tag);
+            }
         }
 
         $images = $query->paginate(24);
 
-        // Get popular tags
+        // Get popular tags (sanitized on input, safe to display)
         $popularTags = Image::whereNotNull('tags')
             ->pluck('tags')
             ->flatten()
