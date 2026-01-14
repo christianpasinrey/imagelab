@@ -1860,6 +1860,8 @@
 
                     const formData = new FormData();
                     formData.append('image', file);
+                    if (this.uploadTitle) formData.append('title', this.uploadTitle);
+                    if (this.uploadTags) formData.append('tags', this.uploadTags);
 
                     try {
                         const res = await fetch('/images', {
@@ -1877,6 +1879,9 @@
                             this.images.unshift(data.image);
                             this.selectImage(data.image);
                             this.showUploadModal = false;
+                            // Reset upload fields
+                            this.uploadTitle = '';
+                            this.uploadTags = '';
                             this.showToast('Imagen subida correctamente', 'success');
                         } else {
                             this.showToast('Error al subir la imagen', 'error');

@@ -76,29 +76,90 @@ class ImageController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'image' => 'required|image|max:20480',
+            'image' => [
+                'required',
+                'image',
+                'max:20480', // 20MB
+                'mimes:jpeg,jpg,png,gif,webp',
+                'dimensions:max_width=8000,max_height=8000',
+            ],
             'title' => 'nullable|string|max:255',
-            'tags' => 'nullable|string',
+            'tags' => 'nullable|string|max:500',
         ]);
 
         $file = $request->file('image');
-        $name = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $filePath = $file->getPathname();
+
+        // Security: verify it's actually a valid image
+        $imageInfo = @getimagesize($filePath);
+        if ($imageInfo === false) {
+            return response()->json(['error' => 'El archivo no es una imagen válida'], 422);
+        }
+
+        // Verify MIME type matches actual content
+        $allowedTypes = [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_GIF, IMAGETYPE_WEBP];
+        if (!in_array($imageInfo[2], $allowedTypes)) {
+            return response()->json(['error' => 'Tipo de imagen no permitido'], 422);
+        }
+
+        // Attempt to load the image with GD to verify it's not corrupted
+        $imageResource = null;
+        try {
+            switch ($imageInfo[2]) {
+                case IMAGETYPE_JPEG:
+                    $imageResource = @imagecreatefromjpeg($filePath);
+                    break;
+                case IMAGETYPE_PNG:
+                    $imageResource = @imagecreatefrompng($filePath);
+                    break;
+                case IMAGETYPE_GIF:
+                    $imageResource = @imagecreatefromgif($filePath);
+                    break;
+                case IMAGETYPE_WEBP:
+                    $imageResource = @imagecreatefromwebp($filePath);
+                    break;
+            }
+
+            if ($imageResource === false || $imageResource === null) {
+                return response()->json(['error' => 'La imagen está corrupta o no se puede procesar'], 422);
+            }
+
+            // Image is valid, free memory
+            imagedestroy($imageResource);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => 'Error al validar la imagen: ' . $e->getMessage()], 422);
+        }
+
+        // Sanitize filename - remove any path traversal attempts
+        $originalName = $file->getClientOriginalName();
+        $name = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
+        $name = substr($name, 0, 100); // Limit length
+
         $sessionId = $request->session()->getId();
 
-        // Parse tags from comma-separated string
+        // Parse and sanitize tags from comma-separated string
         $tags = null;
         if ($request->filled('tags')) {
-            $tags = array_map('trim', explode(',', $request->input('tags')));
-            $tags = array_filter($tags);
+            $tags = array_map(function($tag) {
+                // Strip HTML, trim, and limit length
+                return substr(strip_tags(trim($tag)), 0, 50);
+            }, explode(',', $request->input('tags')));
+            $tags = array_filter($tags, fn($t) => strlen($t) > 0);
             $tags = array_values(array_unique($tags));
+            $tags = array_slice($tags, 0, 20); // Max 20 tags
         }
+
+        // Sanitize title
+        $title = $request->input('title')
+            ? substr(strip_tags(trim($request->input('title'))), 0, 255)
+            : $name;
 
         $image = Image::create([
             'name' => $name,
-            'title' => $request->input('title') ?: $name,
+            'title' => $title,
             'tags' => $tags,
             'session_id' => $sessionId,
-            'original_filename' => $file->getClientOriginalName(),
+            'original_filename' => $originalName,
         ]);
 
         $image->addMedia($file)
@@ -125,19 +186,24 @@ class ImageController extends Controller
 
         $request->validate([
             'title' => 'nullable|string|max:255',
-            'tags' => 'nullable|string',
+            'tags' => 'nullable|string|max:500',
         ]);
 
         $data = [];
 
         if ($request->has('title')) {
-            $data['title'] = $request->input('title');
+            // Sanitize title - strip HTML tags
+            $data['title'] = substr(strip_tags(trim($request->input('title', ''))), 0, 255);
         }
 
         if ($request->has('tags')) {
-            $tags = array_map('trim', explode(',', $request->input('tags', '')));
-            $tags = array_filter($tags);
-            $data['tags'] = array_values(array_unique($tags));
+            // Sanitize tags
+            $tags = array_map(function($tag) {
+                return substr(strip_tags(trim($tag)), 0, 50);
+            }, explode(',', $request->input('tags', '')));
+            $tags = array_filter($tags, fn($t) => strlen($t) > 0);
+            $tags = array_values(array_unique($tags));
+            $data['tags'] = array_slice($tags, 0, 20);
         }
 
         $image->update($data);
@@ -279,8 +345,15 @@ class ImageController extends Controller
         return response()->download($outputPath, $filename)->deleteFileAfterSend(true);
     }
 
-    public function destroy(Image $image): JsonResponse
+    public function destroy(Request $request, Image $image): JsonResponse
     {
+        $sessionId = $request->session()->getId();
+
+        // Only the owner can delete their images
+        if (!$image->canEdit($sessionId)) {
+            return response()->json(['error' => 'No tienes permiso para eliminar esta imagen'], 403);
+        }
+
         $image->delete();
 
         return response()->json(['success' => true]);
