@@ -16,32 +16,88 @@ class ImageController extends Controller
         private ImageProcessorService $processor
     ) {}
 
-    public function index(): View
+    // Public gallery
+    public function gallery(Request $request): View
     {
-        $images = Image::with('media')->latest()->get()->map(function ($img) {
-            return [
-                'id' => $img->id,
-                'name' => $img->name,
-                'url' => $img->getFirstMediaUrl('original'),
-                'thumb' => $img->getFirstMediaUrl('original', 'thumb'),
-                'preview' => $img->getFirstMediaUrl('original', 'preview'),
-            ];
-        });
+        $query = Image::with('media')->latest();
 
-        return view('editor', compact('images'));
+        // Search by title or tags
+        if ($search = $request->get('q')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('name', 'like', "%{$search}%")
+                  ->orWhereJsonContains('tags', $search);
+            });
+        }
+
+        // Filter by tag
+        if ($tag = $request->get('tag')) {
+            $query->whereJsonContains('tags', $tag);
+        }
+
+        $images = $query->paginate(24);
+
+        // Get popular tags
+        $popularTags = Image::whereNotNull('tags')
+            ->pluck('tags')
+            ->flatten()
+            ->countBy()
+            ->sortDesc()
+            ->take(12)
+            ->keys();
+
+        return view('welcome', compact('images', 'popularTags'));
+    }
+
+    // Editor view
+    public function index(Request $request, ?Image $image = null): View
+    {
+        $sessionId = $request->session()->getId();
+
+        // Get user's own images (from this session)
+        $myImages = Image::with('media')
+            ->where('session_id', $sessionId)
+            ->latest()
+            ->get()
+            ->map(fn($img) => $this->formatImageResponse($img, $sessionId));
+
+        $currentImage = null;
+        $canEdit = false;
+
+        if ($image) {
+            $image->incrementViews();
+            $currentImage = $this->formatImageResponse($image, $sessionId);
+            $canEdit = $image->canEdit($sessionId);
+        }
+
+        return view('editor', compact('myImages', 'currentImage', 'canEdit', 'sessionId'));
     }
 
     public function store(Request $request): JsonResponse
     {
         $request->validate([
             'image' => 'required|image|max:20480',
+            'title' => 'nullable|string|max:255',
+            'tags' => 'nullable|string',
         ]);
 
         $file = $request->file('image');
         $name = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $sessionId = $request->session()->getId();
+
+        // Parse tags from comma-separated string
+        $tags = null;
+        if ($request->filled('tags')) {
+            $tags = array_map('trim', explode(',', $request->input('tags')));
+            $tags = array_filter($tags);
+            $tags = array_values(array_unique($tags));
+        }
 
         $image = Image::create([
             'name' => $name,
+            'title' => $request->input('title') ?: $name,
+            'tags' => $tags,
+            'session_id' => $sessionId,
             'original_filename' => $file->getClientOriginalName(),
         ]);
 
@@ -55,7 +111,40 @@ class ImageController extends Controller
 
         return response()->json([
             'success' => true,
-            'image' => $this->formatImageResponse($image),
+            'image' => $this->formatImageResponse($image, $sessionId),
+        ]);
+    }
+
+    public function update(Request $request, Image $image): JsonResponse
+    {
+        $sessionId = $request->session()->getId();
+
+        if (!$image->canEdit($sessionId)) {
+            return response()->json(['error' => 'No tienes permiso para editar esta imagen'], 403);
+        }
+
+        $request->validate([
+            'title' => 'nullable|string|max:255',
+            'tags' => 'nullable|string',
+        ]);
+
+        $data = [];
+
+        if ($request->has('title')) {
+            $data['title'] = $request->input('title');
+        }
+
+        if ($request->has('tags')) {
+            $tags = array_map('trim', explode(',', $request->input('tags', '')));
+            $tags = array_filter($tags);
+            $data['tags'] = array_values(array_unique($tags));
+        }
+
+        $image->update($data);
+
+        return response()->json([
+            'success' => true,
+            'image' => $this->formatImageResponse($image->fresh(), $sessionId),
         ]);
     }
 
@@ -197,17 +286,22 @@ class ImageController extends Controller
         return response()->json(['success' => true]);
     }
 
-    private function formatImageResponse(Image $image): array
+    private function formatImageResponse(Image $image, ?string $sessionId = null): array
     {
         $originalMedia = $image->getFirstMedia('original');
 
         return [
             'id' => $image->id,
+            'slug' => $image->slug,
             'name' => $image->name,
+            'title' => $image->title,
+            'tags' => $image->tags ?? [],
             'original_filename' => $image->original_filename,
             'url' => $originalMedia?->getUrl(),
             'thumb' => $originalMedia?->getUrl('thumb'),
             'preview' => $originalMedia?->getUrl('preview'),
+            'views' => $image->views_count,
+            'can_edit' => $sessionId ? $image->canEdit($sessionId) : false,
             'created_at' => $image->created_at->format('d/m/Y H:i'),
         ];
     }
