@@ -18,7 +18,15 @@ class ImageController extends Controller
 
     public function index(): View
     {
-        $images = Image::with('media')->latest()->get();
+        $images = Image::with('media')->latest()->get()->map(function ($img) {
+            return [
+                'id' => $img->id,
+                'name' => $img->name,
+                'url' => $img->getFirstMediaUrl('original'),
+                'thumb' => $img->getFirstMediaUrl('original', 'thumb'),
+                'preview' => $img->getFirstMediaUrl('original', 'preview'),
+            ];
+        });
 
         return view('editor', compact('images'));
     }
