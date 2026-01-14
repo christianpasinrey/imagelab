@@ -465,11 +465,14 @@
 
                 debounceApply() {
                     clearTimeout(this.applyTimeout);
-                    this.applyTimeout = setTimeout(() => this.applyAdjustments(), 50);
+                    this.applyTimeout = setTimeout(() => {
+                        requestAnimationFrame(() => this.applyAdjustments());
+                    }, 150);
                 },
 
                 applyAdjustments() {
-                    if (!this.originalImageData) return;
+                    if (!this.originalImageData || this.isProcessing) return;
+                    this.isProcessing = true;
 
                     const imageData = new ImageData(
                         new Uint8ClampedArray(this.originalImageData.data),
@@ -478,7 +481,17 @@
                     );
 
                     const data = imageData.data;
+                    const len = data.length;
                     const { brightness, contrast, saturation, exposure, temperature, shadows, highlights, vibrance } = this.adjustments;
+
+                    // Pre-calculate factors
+                    const brightnessFactor = brightness * 2.55;
+                    const contrastFactor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+                    const satFactor = 1 + (saturation / 100);
+                    const gamma = exposure !== 0 ? 1 / (1 + (exposure / 100)) : 1;
+                    const tempR = temperature * 0.5;
+                    const tempB = -temperature * 0.5;
+                    const vibAmt = vibrance / 100;
 
                     for (let i = 0; i < data.length; i += 4) {
                         let r = data[i];
