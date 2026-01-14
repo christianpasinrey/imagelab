@@ -81,12 +81,51 @@ class ImageController extends Controller
             'adjustments' => 'required|array',
             'save_version' => 'boolean',
             'thumbnail' => 'nullable|string',
+            'canvas_image' => 'nullable|string',
         ]);
 
         $adjustments = $request->input('adjustments');
         $saveVersion = $request->boolean('save_version', false);
         $thumbnail = $request->input('thumbnail');
+        $canvasImage = $request->input('canvas_image');
 
+        // If canvas_image is provided, use it directly (exact visual from frontend)
+        if ($canvasImage && $saveVersion) {
+            // Decode base64 canvas image
+            $imageData = preg_replace('#^data:image/\w+;base64,#i', '', $canvasImage);
+            $imageData = base64_decode($imageData);
+
+            if (!$imageData) {
+                return response()->json(['error' => 'Invalid image data'], 400);
+            }
+
+            // Save to temp file
+            $tempDir = storage_path('app' . DIRECTORY_SEPARATOR . 'temp');
+            if (!is_dir($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            $versionNumber = $image->editHistories()->max('version_number') + 1;
+            $tempPath = $tempDir . DIRECTORY_SEPARATOR . "v{$versionNumber}_" . Str::random(8) . '.jpg';
+            file_put_contents($tempPath, $imageData);
+
+            $image->addMedia($tempPath)
+                ->toMediaCollection('versions');
+
+            $image->editHistories()->create([
+                'adjustments' => $adjustments,
+                'thumbnail' => $thumbnail,
+                'version_number' => $versionNumber,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'preview' => $canvasImage,
+                'version' => $versionNumber,
+            ]);
+        }
+
+        // Fallback: process with GD (for preview without saving)
         $originalMedia = $image->getFirstMedia('original');
 
         if (!$originalMedia) {
@@ -98,29 +137,13 @@ class ImageController extends Controller
             $adjustments
         );
 
-        // Read base64 BEFORE addMedia (which moves the file)
         $base64 = base64_encode(file_get_contents($processedPath));
-
-        if ($saveVersion) {
-            $versionNumber = $image->editHistories()->max('version_number') + 1;
-
-            $image->addMedia($processedPath)
-                ->usingFileName("v{$versionNumber}_" . Str::random(8) . '.jpg')
-                ->toMediaCollection('versions');
-
-            $image->editHistories()->create([
-                'adjustments' => $adjustments,
-                'thumbnail' => $thumbnail,
-                'version_number' => $versionNumber,
-            ]);
-        } else {
-            @unlink($processedPath);
-        }
+        @unlink($processedPath);
 
         return response()->json([
             'success' => true,
             'preview' => 'data:image/jpeg;base64,' . $base64,
-            'version' => $saveVersion ? $image->editHistories()->max('version_number') : null,
+            'version' => null,
         ]);
     }
 
