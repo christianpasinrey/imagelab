@@ -198,8 +198,9 @@
                     Subir Imagen
                 </button>
                 <button @click="showExportModal = true" x-show="currentImage || sourceImage"
-                    class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all glass-card hover:border-purple-500/50" style="color: rgba(255,255,255,0.8);">
-                    Exportar
+                    class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all glass-card hover:border-purple-500/50 flex items-center gap-2" style="color: rgba(255,255,255,0.8);">
+                    <span>Exportar</span>
+                    <span class="text-[10px] opacity-60 font-mono bg-white/10 px-1 rounded">⌘E</span>
                 </button>
             </div>
         </header>
@@ -341,17 +342,18 @@
                                     class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform"></div>
                             </div>
                             <span class="text-sm">Comparar</span>
+                            <span class="text-[10px] font-mono text-editor-text-muted bg-editor-bg/50 px-1 rounded">O</span>
                         </label>
 
                         <!-- Zoom -->
                         <div class="flex items-center gap-2">
-                            <button @click="zoom = Math.max(25, zoom - 25)" class="p-1 hover:bg-editor-surface-hover rounded">
+                            <button @click="zoom = Math.max(25, zoom - 25)" class="p-1 hover:bg-editor-surface-hover rounded" title="Reducir zoom (-)">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
                                 </svg>
                             </button>
-                            <span class="text-sm w-12 text-center" x-text="zoom + '%'"></span>
-                            <button @click="zoom = Math.min(200, zoom + 25)" class="p-1 hover:bg-editor-surface-hover rounded">
+                            <button @click="zoom = 100" class="text-sm w-14 text-center hover:bg-editor-surface-hover rounded py-0.5" title="Resetear zoom (⌘0)" x-text="zoom + '%'"></button>
+                            <button @click="zoom = Math.min(200, zoom + 25)" class="p-1 hover:bg-editor-surface-hover rounded" title="Aumentar zoom (+)">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                 </svg>
@@ -359,62 +361,70 @@
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1">
                         <!-- Transform buttons -->
                         <button @click="toggleCropMode()" :class="cropMode ? 'bg-editor-accent' : 'bg-editor-surface-hover'"
-                            class="p-2 rounded-lg hover:bg-editor-border transition-colors" title="Recortar (C)">
+                            class="p-2 rounded-lg hover:bg-editor-border transition-colors group relative" title="Recortar">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
                             </svg>
+                            <span class="absolute -bottom-0.5 -right-0.5 text-[9px] bg-editor-bg/80 px-1 rounded font-mono text-editor-text-muted">C</span>
                         </button>
                         <button @click="rotate(-90)" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors" title="Rotar izquierda">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
                             </svg>
                         </button>
-                        <button @click="rotate(90)" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors" title="Rotar derecha (R)">
+                        <button @click="rotate(90)" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors relative" title="Rotar derecha">
                             <svg class="w-5 h-5 transform scale-x-[-1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
                             </svg>
+                            <span class="absolute -bottom-0.5 -right-0.5 text-[9px] bg-editor-bg/80 px-1 rounded font-mono text-editor-text-muted">R</span>
                         </button>
-                        <button @click="flip('h')" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors" title="Voltear horizontal (H)">
+                        <button @click="flip('h')" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors relative" title="Voltear horizontal">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12M8 17h12M4 7v10"/>
                             </svg>
+                            <span class="absolute -bottom-0.5 -right-0.5 text-[9px] bg-editor-bg/80 px-1 rounded font-mono text-editor-text-muted">H</span>
                         </button>
-                        <button @click="flip('v')" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors" title="Voltear vertical (V)">
+                        <button @click="flip('v')" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors relative" title="Voltear vertical">
                             <svg class="w-5 h-5 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12M8 17h12M4 7v10"/>
                             </svg>
+                            <span class="absolute -bottom-0.5 -right-0.5 text-[9px] bg-editor-bg/80 px-1 rounded font-mono text-editor-text-muted">V</span>
                         </button>
 
-                        <div class="w-px h-6 bg-editor-border mx-2"></div>
+                        <div class="w-px h-6 bg-editor-border mx-1"></div>
 
                         <!-- Undo/Redo -->
                         <button @click="undo()" :disabled="undoStack.length === 0"
                             :class="undoStack.length === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-editor-border'"
-                            class="p-2 bg-editor-surface-hover rounded-lg transition-colors" title="Deshacer (Ctrl+Z)">
+                            class="p-2 bg-editor-surface-hover rounded-lg transition-colors relative" title="Deshacer">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
                             </svg>
+                            <span class="absolute -bottom-0.5 -right-0.5 text-[9px] bg-editor-bg/80 px-0.5 rounded font-mono text-editor-text-muted">⌘Z</span>
                         </button>
                         <button @click="redo()" :disabled="redoStack.length === 0"
                             :class="redoStack.length === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-editor-border'"
-                            class="p-2 bg-editor-surface-hover rounded-lg transition-colors" title="Rehacer (Ctrl+Y)">
+                            class="p-2 bg-editor-surface-hover rounded-lg transition-colors relative" title="Rehacer">
                             <svg class="w-5 h-5 transform scale-x-[-1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
                             </svg>
+                            <span class="absolute -bottom-0.5 -right-0.5 text-[9px] bg-editor-bg/80 px-0.5 rounded font-mono text-editor-text-muted">⌘Y</span>
                         </button>
 
-                        <div class="w-px h-6 bg-editor-border mx-2"></div>
+                        <div class="w-px h-6 bg-editor-border mx-1"></div>
 
-                        <button @click="resetAdjustments()" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors" title="Resetear (Delete)">
+                        <button @click="resetAdjustments()" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors relative" title="Resetear">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                             </svg>
+                            <span class="absolute -bottom-0.5 -right-0.5 text-[9px] bg-editor-bg/80 px-0.5 rounded font-mono text-editor-text-muted">Del</span>
                         </button>
-                        <button @click="saveVersion()" class="px-3 py-2 bg-editor-accent hover:bg-editor-accent-hover rounded-lg text-sm font-medium transition-colors" title="Guardar versión (Ctrl+S)">
-                            Guardar versión
+                        <button @click="saveVersion()" class="px-3 py-2 bg-editor-accent hover:bg-editor-accent-hover rounded-lg text-sm font-medium transition-colors flex items-center gap-2" title="Guardar versión">
+                            <span>Guardar</span>
+                            <span class="text-[10px] opacity-70 font-mono bg-white/10 px-1 rounded">⌘S</span>
                         </button>
                     </div>
                 </div>
@@ -685,30 +695,34 @@
                         <!-- Brush Type -->
                         <div>
                             <label class="block text-sm font-medium mb-2">Tipo de pincel</label>
-                            <div class="grid grid-cols-4 gap-1">
+                            <div class="grid grid-cols-2 gap-2">
                                 <button @click="brush.type = 'round'"
                                     :class="brush.type === 'round' ? 'bg-editor-accent' : 'bg-editor-bg hover:bg-editor-surface-hover'"
-                                    class="p-2 rounded transition-colors" title="Redondo">
-                                    <div class="w-4 h-4 mx-auto rounded-full bg-current"></div>
+                                    class="p-2 rounded-lg transition-colors flex items-center gap-2">
+                                    <div class="w-4 h-4 rounded-full bg-current flex-shrink-0"></div>
+                                    <span class="text-xs">Redondo</span>
                                 </button>
                                 <button @click="brush.type = 'square'"
                                     :class="brush.type === 'square' ? 'bg-editor-accent' : 'bg-editor-bg hover:bg-editor-surface-hover'"
-                                    class="p-2 rounded transition-colors" title="Cuadrado">
-                                    <div class="w-4 h-4 mx-auto bg-current"></div>
+                                    class="p-2 rounded-lg transition-colors flex items-center gap-2">
+                                    <div class="w-4 h-4 bg-current flex-shrink-0"></div>
+                                    <span class="text-xs">Cuadrado</span>
                                 </button>
                                 <button @click="brush.type = 'soft'"
                                     :class="brush.type === 'soft' ? 'bg-editor-accent' : 'bg-editor-bg hover:bg-editor-surface-hover'"
-                                    class="p-2 rounded transition-colors" title="Suave">
-                                    <div class="w-4 h-4 mx-auto rounded-full bg-current opacity-50"></div>
+                                    class="p-2 rounded-lg transition-colors flex items-center gap-2">
+                                    <div class="w-4 h-4 rounded-full flex-shrink-0" style="background: radial-gradient(circle, currentColor 0%, transparent 70%)"></div>
+                                    <span class="text-xs">Suave</span>
                                 </button>
                                 <button @click="brush.type = 'spray'"
                                     :class="brush.type === 'spray' ? 'bg-editor-accent' : 'bg-editor-bg hover:bg-editor-surface-hover'"
-                                    class="p-2 rounded transition-colors" title="Spray">
-                                    <svg class="w-4 h-4 mx-auto" viewBox="0 0 16 16" fill="currentColor">
-                                        <circle cx="8" cy="8" r="1"/><circle cx="5" cy="6" r="0.8"/><circle cx="11" cy="6" r="0.8"/>
-                                        <circle cx="6" cy="10" r="0.8"/><circle cx="10" cy="10" r="0.8"/><circle cx="8" cy="5" r="0.6"/>
+                                    class="p-2 rounded-lg transition-colors flex items-center gap-2">
+                                    <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
+                                        <circle cx="8" cy="8" r="1.2"/><circle cx="5" cy="6" r="0.8"/><circle cx="11" cy="6" r="0.8"/>
+                                        <circle cx="6" cy="10" r="0.8"/><circle cx="10" cy="10" r="0.8"/><circle cx="8" cy="4" r="0.6"/>
                                         <circle cx="4" cy="9" r="0.6"/><circle cx="12" cy="9" r="0.6"/>
                                     </svg>
+                                    <span class="text-xs">Spray</span>
                                 </button>
                             </div>
                         </div>
@@ -1156,6 +1170,9 @@
                 lastBrushY: 0,
                 hasBrushStrokes: false,
                 brushImageDataBackup: null,
+                strokeCanvas: null,
+                strokeCtx: null,
+                strokeStartState: null,
 
                 init() {
                     this.canvas = this.$refs.canvas;
@@ -2226,6 +2243,15 @@
                         this.brushImageDataBackup = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
                     }
 
+                    // Create temporary canvas for this stroke (for proper opacity)
+                    this.strokeCanvas = document.createElement('canvas');
+                    this.strokeCanvas.width = this.canvas.width;
+                    this.strokeCanvas.height = this.canvas.height;
+                    this.strokeCtx = this.strokeCanvas.getContext('2d');
+
+                    // Save current canvas state before this stroke
+                    this.strokeStartState = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+
                     this.isDrawing = true;
                     document.body.style.userSelect = 'none';
 
@@ -2235,6 +2261,7 @@
 
                     // Draw initial point
                     this.drawBrushPoint(coords.x, coords.y);
+                    this.compositeStroke();
                     this.hasBrushStrokes = true;
                 },
 
@@ -2244,16 +2271,40 @@
                     e.preventDefault();
                     const coords = this.getCanvasCoords(e);
 
-                    // Draw line from last point to current
+                    // Draw line from last point to current on stroke canvas
                     this.drawBrushLine(this.lastBrushX, this.lastBrushY, coords.x, coords.y);
+
+                    // Composite stroke onto main canvas with opacity
+                    this.compositeStroke();
 
                     this.lastBrushX = coords.x;
                     this.lastBrushY = coords.y;
                 },
 
                 endBrushStroke() {
+                    if (this.isDrawing) {
+                        // Final composite
+                        this.compositeStroke();
+                        // Clean up
+                        this.strokeCanvas = null;
+                        this.strokeCtx = null;
+                        this.strokeStartState = null;
+                    }
                     this.isDrawing = false;
                     document.body.style.userSelect = '';
+                },
+
+                compositeStroke() {
+                    if (!this.strokeCanvas || !this.strokeStartState) return;
+
+                    // Restore canvas to state before this stroke
+                    this.ctx.putImageData(this.strokeStartState, 0, 0);
+
+                    // Draw stroke canvas with opacity
+                    this.ctx.save();
+                    this.ctx.globalAlpha = this.brush.opacity / 100;
+                    this.ctx.drawImage(this.strokeCanvas, 0, 0);
+                    this.ctx.restore();
                 },
 
                 getCanvasCoords(e) {
@@ -2267,22 +2318,20 @@
                 },
 
                 drawBrushPoint(x, y) {
-                    const ctx = this.ctx;
+                    // Use stroke canvas for proper opacity handling
+                    const ctx = this.strokeCtx || this.ctx;
                     const size = this.brush.size;
                     const halfSize = size / 2;
 
-                    ctx.save();
-                    ctx.globalAlpha = this.brush.opacity / 100;
-
                     if (this.brush.mode === 'erase' && this.originalImageData) {
-                        // Erase mode: restore original pixels
+                        // Erase mode: restore original pixels (directly on main canvas)
                         this.eraseAt(x, y, size);
                     } else if (this.brush.type === 'spray') {
                         // Spray brush
-                        this.drawSpray(x, y, size);
+                        this.drawSpray(ctx, x, y, size);
                     } else if (this.brush.type === 'soft') {
                         // Soft brush with gradient
-                        this.drawSoftBrush(x, y, size);
+                        this.drawSoftBrush(ctx, x, y, size);
                     } else {
                         // Round or square brush
                         ctx.fillStyle = this.brush.color;
@@ -2294,8 +2343,6 @@
                             ctx.fill();
                         }
                     }
-
-                    ctx.restore();
                 },
 
                 drawBrushLine(x1, y1, x2, y2) {
@@ -2313,8 +2360,7 @@
                     }
                 },
 
-                drawSoftBrush(x, y, size) {
-                    const ctx = this.ctx;
+                drawSoftBrush(ctx, x, y, size) {
                     const halfSize = size / 2;
                     const hardness = this.brush.hardness / 100;
 
@@ -2323,7 +2369,7 @@
                     const color = this.hexToRgb(this.brush.color);
 
                     // Inner solid portion based on hardness
-                    const innerStop = hardness * 0.8;
+                    const innerStop = Math.max(0.01, hardness * 0.8);
                     gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 1)`);
                     gradient.addColorStop(innerStop, `rgba(${color.r}, ${color.g}, ${color.b}, 1)`);
                     gradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
@@ -2334,8 +2380,7 @@
                     ctx.fill();
                 },
 
-                drawSpray(x, y, size) {
-                    const ctx = this.ctx;
+                drawSpray(ctx, x, y, size) {
                     const density = Math.floor(size * 1.5);
                     const halfSize = size / 2;
 
