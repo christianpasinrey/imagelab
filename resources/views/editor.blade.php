@@ -289,8 +289,11 @@
                         <!-- Canvas for edited preview -->
                         <canvas x-ref="canvas"
                             class="max-w-full max-h-[70vh] block select-none"
-                            :class="{'opacity-50': isProcessing, 'cursor-move': textPreviewActive && activeTab === 'text'}"
-                            @mousedown="startTextDrag($event)"></canvas>
+                            :class="{'opacity-50': isProcessing, 'cursor-move': textPreviewActive && activeTab === 'text', 'cursor-crosshair': activeTab === 'brush'}"
+                            @mousedown="handleCanvasMouseDown($event)"
+                            @mousemove="handleCanvasMouseMove($event)"
+                            @mouseup="handleCanvasMouseUp($event)"
+                            @mouseleave="handleCanvasMouseUp($event)"></canvas>
 
                         <!-- Original image for comparison (overlaid on right side) -->
                         <template x-if="showComparison && comparisonSrc">
@@ -435,6 +438,11 @@
                         :class="activeTab === 'text' ? 'border-b-2 border-editor-accent text-editor-text' : 'text-editor-text-muted'"
                         class="flex-1 py-2 text-xs font-medium transition-colors">
                         Texto
+                    </button>
+                    <button @click="activeTab = 'brush'"
+                        :class="activeTab === 'brush' ? 'border-b-2 border-editor-accent text-editor-text' : 'text-editor-text-muted'"
+                        class="flex-1 py-2 text-xs font-medium transition-colors">
+                        Pincel
                     </button>
                     <button @click="activeTab = 'history'"
                         :class="activeTab === 'history' ? 'border-b-2 border-editor-accent text-editor-text' : 'text-editor-text-muted'"
@@ -647,6 +655,137 @@
                             </button>
                         </div>
 
+                    </div>
+
+                    <!-- Brush Tab -->
+                    <div x-show="activeTab === 'brush'" class="p-4 space-y-4 text-xs">
+                        <!-- Brush Mode Toggle -->
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Modo</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button @click="brush.mode = 'draw'"
+                                    :class="brush.mode === 'draw' ? 'bg-editor-accent' : 'bg-editor-bg hover:bg-editor-surface-hover'"
+                                    class="py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                    </svg>
+                                    Dibujar
+                                </button>
+                                <button @click="brush.mode = 'erase'"
+                                    :class="brush.mode === 'erase' ? 'bg-editor-accent' : 'bg-editor-bg hover:bg-editor-surface-hover'"
+                                    class="py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                    Borrar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Brush Type -->
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Tipo de pincel</label>
+                            <div class="grid grid-cols-4 gap-1">
+                                <button @click="brush.type = 'round'"
+                                    :class="brush.type === 'round' ? 'bg-editor-accent' : 'bg-editor-bg hover:bg-editor-surface-hover'"
+                                    class="p-2 rounded transition-colors" title="Redondo">
+                                    <div class="w-4 h-4 mx-auto rounded-full bg-current"></div>
+                                </button>
+                                <button @click="brush.type = 'square'"
+                                    :class="brush.type === 'square' ? 'bg-editor-accent' : 'bg-editor-bg hover:bg-editor-surface-hover'"
+                                    class="p-2 rounded transition-colors" title="Cuadrado">
+                                    <div class="w-4 h-4 mx-auto bg-current"></div>
+                                </button>
+                                <button @click="brush.type = 'soft'"
+                                    :class="brush.type === 'soft' ? 'bg-editor-accent' : 'bg-editor-bg hover:bg-editor-surface-hover'"
+                                    class="p-2 rounded transition-colors" title="Suave">
+                                    <div class="w-4 h-4 mx-auto rounded-full bg-current opacity-50"></div>
+                                </button>
+                                <button @click="brush.type = 'spray'"
+                                    :class="brush.type === 'spray' ? 'bg-editor-accent' : 'bg-editor-bg hover:bg-editor-surface-hover'"
+                                    class="p-2 rounded transition-colors" title="Spray">
+                                    <svg class="w-4 h-4 mx-auto" viewBox="0 0 16 16" fill="currentColor">
+                                        <circle cx="8" cy="8" r="1"/><circle cx="5" cy="6" r="0.8"/><circle cx="11" cy="6" r="0.8"/>
+                                        <circle cx="6" cy="10" r="0.8"/><circle cx="10" cy="10" r="0.8"/><circle cx="8" cy="5" r="0.6"/>
+                                        <circle cx="4" cy="9" r="0.6"/><circle cx="12" cy="9" r="0.6"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Brush Size -->
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="font-medium">Tamaño</label>
+                                <span class="text-editor-text-muted" x-text="brush.size + 'px'"></span>
+                            </div>
+                            <input type="range" min="1" max="100" x-model.number="brush.size" class="w-full">
+                            <!-- Size preview -->
+                            <div class="flex items-center justify-center mt-2 h-12 bg-editor-bg rounded-lg">
+                                <div :style="`width: ${Math.min(brush.size, 40)}px; height: ${Math.min(brush.size, 40)}px; background-color: ${brush.color}; border-radius: ${brush.type === 'square' ? '0' : '50%'}; opacity: ${brush.type === 'soft' ? 0.5 : 1}`"></div>
+                            </div>
+                        </div>
+
+                        <!-- Brush Opacity -->
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="font-medium">Opacidad</label>
+                                <span class="text-editor-text-muted" x-text="brush.opacity + '%'"></span>
+                            </div>
+                            <input type="range" min="10" max="100" x-model.number="brush.opacity" class="w-full">
+                        </div>
+
+                        <!-- Brush Hardness (for soft brush) -->
+                        <div x-show="brush.type === 'soft'" x-collapse>
+                            <div class="flex justify-between mb-2">
+                                <label class="font-medium">Dureza</label>
+                                <span class="text-editor-text-muted" x-text="brush.hardness + '%'"></span>
+                            </div>
+                            <input type="range" min="0" max="100" x-model.number="brush.hardness" class="w-full">
+                        </div>
+
+                        <!-- Brush Color -->
+                        <div x-show="brush.mode === 'draw'">
+                            <label class="block font-medium mb-2">Color</label>
+                            <div class="flex gap-2 items-center">
+                                <input type="color" x-model="brush.color"
+                                    class="w-10 h-10 rounded cursor-pointer border-0 bg-transparent">
+                                <input type="text" x-model="brush.color"
+                                    class="flex-1 bg-editor-bg border border-editor-border rounded px-2 py-1.5 text-sm">
+                            </div>
+                            <!-- Quick colors -->
+                            <div class="flex gap-1.5 mt-2 flex-wrap">
+                                <template x-for="c in brushColors" :key="c">
+                                    <button @click="brush.color = c"
+                                        :class="brush.color === c ? 'ring-2 ring-white ring-offset-1 ring-offset-editor-bg' : ''"
+                                        :style="`background-color: ${c}`"
+                                        class="w-6 h-6 rounded-full cursor-pointer transition-transform hover:scale-110">
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Instructions -->
+                        <div class="text-editor-text-muted text-[10px] bg-editor-bg rounded-lg p-2">
+                            <p x-show="brush.mode === 'draw'">Haz clic y arrastra sobre la imagen para dibujar</p>
+                            <p x-show="brush.mode === 'erase'">Haz clic y arrastra para restaurar la imagen original</p>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex gap-2 pt-2">
+                            <button @click="applyBrushStrokes()"
+                                :disabled="!hasBrushStrokes"
+                                :class="hasBrushStrokes ? 'bg-editor-accent hover:bg-editor-accent-hover' : 'bg-editor-border cursor-not-allowed'"
+                                class="flex-1 py-2 rounded-lg text-sm font-medium transition-colors">
+                                Aplicar cambios
+                            </button>
+                            <button @click="clearBrushStrokes()"
+                                :disabled="!hasBrushStrokes"
+                                :class="hasBrushStrokes ? 'bg-editor-bg hover:bg-editor-surface-hover' : 'bg-editor-border cursor-not-allowed opacity-50'"
+                                class="px-4 py-2 rounded-lg text-sm transition-colors">
+                                Deshacer
+                            </button>
+                        </div>
                     </div>
 
                     <!-- History Tab -->
@@ -997,6 +1136,26 @@
                 ],
 
                 textPreviewActive: false,
+
+                // Brush tool
+                brush: {
+                    mode: 'draw',
+                    type: 'round',
+                    size: 20,
+                    opacity: 100,
+                    hardness: 50,
+                    color: '#ffffff',
+                },
+                brushColors: [
+                    '#ffffff', '#000000', '#ff0000', '#00ff00', '#0000ff',
+                    '#ffff00', '#ff00ff', '#00ffff', '#ff6600', '#9933ff',
+                    '#ff69b4', '#32cd32', '#ffd700', '#1e90ff',
+                ],
+                isDrawing: false,
+                lastBrushX: 0,
+                lastBrushY: 0,
+                hasBrushStrokes: false,
+                brushImageDataBackup: null,
 
                 init() {
                     this.canvas = this.$refs.canvas;
@@ -2029,6 +2188,246 @@
                     this.textOverlay.customY = null;
                     this.textPreviewActive = false;
                     this.applyAdjustments(); // Restore canvas without text
+                },
+
+                // Canvas mouse handlers (unified for text drag and brush)
+                handleCanvasMouseDown(e) {
+                    if (this.activeTab === 'brush') {
+                        this.startBrushStroke(e);
+                    } else if (this.activeTab === 'text') {
+                        this.startTextDrag(e);
+                    }
+                },
+
+                handleCanvasMouseMove(e) {
+                    if (this.activeTab === 'brush' && this.isDrawing) {
+                        this.continueBrushStroke(e);
+                    } else if (this.activeTab === 'text' && this.isDraggingText) {
+                        this.handleTextDrag(e);
+                    }
+                },
+
+                handleCanvasMouseUp(e) {
+                    if (this.activeTab === 'brush') {
+                        this.endBrushStroke();
+                    } else if (this.activeTab === 'text') {
+                        this.stopTextDrag();
+                    }
+                },
+
+                // Brush tool methods
+                startBrushStroke(e) {
+                    if (!this.canvas || !this.ctx) return;
+
+                    e.preventDefault();
+
+                    // Backup current state if first stroke
+                    if (!this.hasBrushStrokes) {
+                        this.brushImageDataBackup = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                    }
+
+                    this.isDrawing = true;
+                    document.body.style.userSelect = 'none';
+
+                    const coords = this.getCanvasCoords(e);
+                    this.lastBrushX = coords.x;
+                    this.lastBrushY = coords.y;
+
+                    // Draw initial point
+                    this.drawBrushPoint(coords.x, coords.y);
+                    this.hasBrushStrokes = true;
+                },
+
+                continueBrushStroke(e) {
+                    if (!this.isDrawing || !this.canvas || !this.ctx) return;
+
+                    e.preventDefault();
+                    const coords = this.getCanvasCoords(e);
+
+                    // Draw line from last point to current
+                    this.drawBrushLine(this.lastBrushX, this.lastBrushY, coords.x, coords.y);
+
+                    this.lastBrushX = coords.x;
+                    this.lastBrushY = coords.y;
+                },
+
+                endBrushStroke() {
+                    this.isDrawing = false;
+                    document.body.style.userSelect = '';
+                },
+
+                getCanvasCoords(e) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const scaleX = this.canvas.width / rect.width;
+                    const scaleY = this.canvas.height / rect.height;
+                    return {
+                        x: (e.clientX - rect.left) * scaleX,
+                        y: (e.clientY - rect.top) * scaleY
+                    };
+                },
+
+                drawBrushPoint(x, y) {
+                    const ctx = this.ctx;
+                    const size = this.brush.size;
+                    const halfSize = size / 2;
+
+                    ctx.save();
+                    ctx.globalAlpha = this.brush.opacity / 100;
+
+                    if (this.brush.mode === 'erase' && this.originalImageData) {
+                        // Erase mode: restore original pixels
+                        this.eraseAt(x, y, size);
+                    } else if (this.brush.type === 'spray') {
+                        // Spray brush
+                        this.drawSpray(x, y, size);
+                    } else if (this.brush.type === 'soft') {
+                        // Soft brush with gradient
+                        this.drawSoftBrush(x, y, size);
+                    } else {
+                        // Round or square brush
+                        ctx.fillStyle = this.brush.color;
+                        ctx.beginPath();
+                        if (this.brush.type === 'square') {
+                            ctx.fillRect(x - halfSize, y - halfSize, size, size);
+                        } else {
+                            ctx.arc(x, y, halfSize, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+
+                    ctx.restore();
+                },
+
+                drawBrushLine(x1, y1, x2, y2) {
+                    // Calculate distance and steps for smooth line
+                    const dx = x2 - x1;
+                    const dy = y2 - y1;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const steps = Math.max(1, Math.floor(dist / (this.brush.size / 4)));
+
+                    for (let i = 0; i <= steps; i++) {
+                        const t = i / steps;
+                        const x = x1 + dx * t;
+                        const y = y1 + dy * t;
+                        this.drawBrushPoint(x, y);
+                    }
+                },
+
+                drawSoftBrush(x, y, size) {
+                    const ctx = this.ctx;
+                    const halfSize = size / 2;
+                    const hardness = this.brush.hardness / 100;
+
+                    // Create radial gradient
+                    const gradient = ctx.createRadialGradient(x, y, 0, x, y, halfSize);
+                    const color = this.hexToRgb(this.brush.color);
+
+                    // Inner solid portion based on hardness
+                    const innerStop = hardness * 0.8;
+                    gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 1)`);
+                    gradient.addColorStop(innerStop, `rgba(${color.r}, ${color.g}, ${color.b}, 1)`);
+                    gradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(x, y, halfSize, 0, Math.PI * 2);
+                    ctx.fill();
+                },
+
+                drawSpray(x, y, size) {
+                    const ctx = this.ctx;
+                    const density = Math.floor(size * 1.5);
+                    const halfSize = size / 2;
+
+                    ctx.fillStyle = this.brush.color;
+
+                    for (let i = 0; i < density; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const radius = Math.random() * halfSize;
+                        const px = x + Math.cos(angle) * radius;
+                        const py = y + Math.sin(angle) * radius;
+                        const dotSize = Math.random() * 2 + 0.5;
+
+                        ctx.beginPath();
+                        ctx.arc(px, py, dotSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                },
+
+                eraseAt(x, y, size) {
+                    if (!this.originalImageData) return;
+
+                    const ctx = this.ctx;
+                    const halfSize = Math.floor(size / 2);
+                    const startX = Math.max(0, Math.floor(x - halfSize));
+                    const startY = Math.max(0, Math.floor(y - halfSize));
+                    const endX = Math.min(this.canvas.width, Math.floor(x + halfSize));
+                    const endY = Math.min(this.canvas.height, Math.floor(y + halfSize));
+
+                    const originalData = this.originalImageData.data;
+                    const currentImageData = ctx.getImageData(startX, startY, endX - startX, endY - startY);
+                    const currentData = currentImageData.data;
+
+                    const imgWidth = this.originalImageData.width;
+
+                    for (let py = startY; py < endY; py++) {
+                        for (let px = startX; px < endX; px++) {
+                            // Check if pixel is within brush circle
+                            const dx = px - x;
+                            const dy = py - y;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+
+                            if (dist <= halfSize) {
+                                // Calculate alpha based on distance for soft edge
+                                let alpha = 1;
+                                if (dist > halfSize * 0.7) {
+                                    alpha = 1 - ((dist - halfSize * 0.7) / (halfSize * 0.3));
+                                }
+                                alpha *= this.brush.opacity / 100;
+
+                                // Get original pixel
+                                const origIdx = (py * imgWidth + px) * 4;
+                                const currIdx = ((py - startY) * (endX - startX) + (px - startX)) * 4;
+
+                                // Blend original with current
+                                currentData[currIdx] = currentData[currIdx] * (1 - alpha) + originalData[origIdx] * alpha;
+                                currentData[currIdx + 1] = currentData[currIdx + 1] * (1 - alpha) + originalData[origIdx + 1] * alpha;
+                                currentData[currIdx + 2] = currentData[currIdx + 2] * (1 - alpha) + originalData[origIdx + 2] * alpha;
+                            }
+                        }
+                    }
+
+                    ctx.putImageData(currentImageData, startX, startY);
+                },
+
+                hexToRgb(hex) {
+                    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                    return result ? {
+                        r: parseInt(result[1], 16),
+                        g: parseInt(result[2], 16),
+                        b: parseInt(result[3], 16)
+                    } : { r: 255, g: 255, b: 255 };
+                },
+
+                applyBrushStrokes() {
+                    if (!this.hasBrushStrokes) return;
+
+                    // Make current canvas state the new original
+                    this.originalImageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                    this.comparisonSrc = this.canvas.toDataURL('image/jpeg', 0.9);
+                    this.brushImageDataBackup = null;
+                    this.hasBrushStrokes = false;
+                    this.showToast('Cambios de pincel aplicados', 'success');
+                },
+
+                clearBrushStrokes() {
+                    if (!this.hasBrushStrokes || !this.brushImageDataBackup) return;
+
+                    // Restore to backup state
+                    this.ctx.putImageData(this.brushImageDataBackup, 0, 0);
+                    this.brushImageDataBackup = null;
+                    this.hasBrushStrokes = false;
+                    this.showToast('Cambios de pincel descartados', 'info');
                 },
 
                 // Toast notifications
