@@ -145,47 +145,29 @@
             display: block;
         }
 
-        /* Skeleton placeholder */
-        .step-image.skeleton {
-            background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.06) 100%);
-            aspect-ratio: 3/4;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .skeleton-icon {
-            color: rgba(255,255,255,0.15);
-        }
-
         .step-arrow {
             flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 120px;
+            min-height: 140px;
         }
 
         .curved-arrow {
-            width: 120px;
-            height: 100px;
+            width: 180px;
+            height: 120px;
         }
 
         .curved-arrow path {
             fill: none;
             stroke: url(#arrowGradient);
-            stroke-width: 2;
+            stroke-width: 3;
             stroke-linecap: round;
         }
 
         .curved-arrow .arrow-head {
-            fill: rgba(6, 182, 212, 0.6);
+            fill: rgba(6, 182, 212, 0.8);
             stroke: none;
-        }
-
-        /* Flip for even steps */
-        .step:nth-child(even) .curved-arrow {
-            transform: scaleX(-1);
         }
 
         @keyframes fadeUp {
@@ -194,34 +176,16 @@
 
         /* Divider */
         .divider {
-            text-align: center;
-            padding: 40px 24px 60px;
+            padding: 20px 24px 60px;
             opacity: 0;
-            animation: fadeUp 0.6s ease 1.1s forwards;
+            animation: fadeUp 0.6s ease 0.5s forwards;
         }
 
         .divider-line {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .divider-line::before,
-        .divider-line::after {
-            content: '';
-            width: 100px;
+            max-width: 200px;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-        }
-
-        .divider h2 {
-            font-size: 14px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            color: rgba(255,255,255,0.4);
+            margin: 0 auto;
+            background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.4), rgba(6, 182, 212, 0.4), transparent);
         }
 
         /* Gallery */
@@ -461,10 +425,15 @@
                 width: 220px;
             }
             .step-arrow {
+                min-height: 80px;
+            }
+            .curved-arrow {
+                width: 80px;
+                height: 60px;
                 transform: rotate(90deg);
             }
-            .arrow-line {
-                height: 40px;
+            .step:nth-child(even) .curved-arrow {
+                transform: rotate(90deg) scaleX(-1);
             }
         }
     </style>
@@ -507,26 +476,28 @@
     <section class="stepper">
         <!-- Meme 1 -->
         <div class="step">
-            <div class="step-image">
+            <a href="/editor?source=/img/meme_1.png" class="step-image">
                 <img src="/img/meme_1.png" alt="Meme">
-            </div>
+            </a>
             <div class="step-arrow">
-                <svg class="curved-arrow" viewBox="0 0 120 100">
-                    <path d="M10,10 Q10,90 100,90" />
-                    <polygon class="arrow-head" points="95,82 105,90 95,98" />
+                <svg class="curved-arrow" viewBox="0 0 120 110">
+                    <!-- Curva: derecha y abajo -->
+                    <path d="M10,10 Q110,10 110,100" />
+                    <polygon class="arrow-head" points="103,92 110,108 117,92" />
                 </svg>
             </div>
         </div>
 
         <!-- Meme 2 -->
         <div class="step">
-            <div class="step-image">
+            <a href="/editor?source=/img/meme_2.png" class="step-image">
                 <img src="/img/meme_2.png" alt="Meme">
-            </div>
+            </a>
             <div class="step-arrow">
-                <svg class="curved-arrow" viewBox="0 0 120 100">
-                    <path d="M10,10 Q10,90 100,90" />
-                    <polygon class="arrow-head" points="95,82 105,90 95,98" />
+                <svg class="curved-arrow" viewBox="0 0 120 110">
+                    <!-- Curva: izquierda y abajo -->
+                    <path d="M110,10 Q10,10 10,100" />
+                    <polygon class="arrow-head" points="3,92 10,108 17,92" />
                 </svg>
             </div>
         </div>
