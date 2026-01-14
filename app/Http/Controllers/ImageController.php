@@ -69,6 +69,7 @@ class ImageController extends Controller
                 'id' => $h->id,
                 'version' => $h->version_number,
                 'adjustments' => $h->adjustments,
+                'thumbnail' => $h->thumbnail,
                 'created_at' => $h->created_at->format('d/m/Y H:i'),
             ]),
         ]);
@@ -79,10 +80,12 @@ class ImageController extends Controller
         $request->validate([
             'adjustments' => 'required|array',
             'save_version' => 'boolean',
+            'thumbnail' => 'nullable|string',
         ]);
 
         $adjustments = $request->input('adjustments');
         $saveVersion = $request->boolean('save_version', false);
+        $thumbnail = $request->input('thumbnail');
 
         $originalMedia = $image->getFirstMedia('original');
 
@@ -104,6 +107,7 @@ class ImageController extends Controller
 
             $image->editHistories()->create([
                 'adjustments' => $adjustments,
+                'thumbnail' => $thumbnail,
                 'version_number' => $versionNumber,
             ]);
         }
