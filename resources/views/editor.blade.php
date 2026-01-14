@@ -156,6 +156,29 @@
             color: #fff;
             background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
         }
+
+        /* Keyboard key style (macOS inspired) */
+        .kbd {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            font-family: system-ui, -apple-system, sans-serif;
+            font-size: 10px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+
+        .kbd-light {
+            background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%);
+            color: rgba(255, 255, 255, 0.9);
+        }
     </style>
 </head>
 <body class="text-white min-h-screen" style="background: #0a0a0f;">
@@ -198,9 +221,8 @@
                     Subir Imagen
                 </button>
                 <button @click="showExportModal = true" x-show="currentImage || sourceImage"
-                    class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all glass-card hover:border-purple-500/50 flex items-center gap-2" style="color: rgba(255,255,255,0.8);">
-                    <span>Exportar</span>
-                    <span class="text-[10px] opacity-60 font-mono bg-white/10 px-1 rounded">⌘E</span>
+                    class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all glass-card hover:border-purple-500/50" style="color: rgba(255,255,255,0.8);" title="Exportar imagen [Ctrl+E]">
+                    Exportar
                 </button>
             </div>
         </header>
@@ -332,99 +354,100 @@
 
                 <!-- Bottom Toolbar -->
                 <div x-show="currentImage || sourceImage" class="bg-editor-surface border-t border-editor-border px-4 py-2 flex items-center justify-between">
-                    <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
                         <!-- Comparison Toggle -->
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" x-model="showComparison" class="sr-only">
-                            <div :class="showComparison ? 'bg-editor-accent' : 'bg-editor-border'"
-                                class="w-10 h-5 rounded-full relative transition-colors">
-                                <div :class="showComparison ? 'translate-x-5' : 'translate-x-0'"
-                                    class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform"></div>
-                            </div>
-                            <span class="text-sm">Comparar</span>
-                            <span class="text-[10px] font-mono text-editor-text-muted bg-editor-bg/50 px-1 rounded">O</span>
-                        </label>
+                        <button @click="showComparison = !showComparison"
+                            :class="showComparison ? 'bg-editor-accent' : 'bg-editor-bg/50 hover:bg-editor-surface-hover'"
+                            class="h-7 px-2 rounded-md transition-colors flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                            <span class="text-xs">Comparar</span>
+                            <kbd class="kbd">O</kbd>
+                        </button>
 
                         <!-- Zoom -->
-                        <div class="flex items-center gap-2">
-                            <button @click="zoom = Math.max(25, zoom - 25)" class="p-1 hover:bg-editor-surface-hover rounded" title="Reducir zoom (-)">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="flex items-center gap-1">
+                            <button @click="zoom = Math.max(25, zoom - 25)" class="h-7 w-7 rounded-md bg-editor-bg/50 hover:bg-editor-surface-hover transition-colors flex items-center justify-center">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
                                 </svg>
                             </button>
-                            <button @click="zoom = 100" class="text-sm w-14 text-center hover:bg-editor-surface-hover rounded py-0.5" title="Resetear zoom (⌘0)" x-text="zoom + '%'"></button>
-                            <button @click="zoom = Math.min(200, zoom + 25)" class="p-1 hover:bg-editor-surface-hover rounded" title="Aumentar zoom (+)">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <button @click="zoom = 100" class="h-7 px-2 rounded-md bg-editor-bg/50 hover:bg-editor-surface-hover transition-colors text-xs min-w-[52px]" x-text="zoom + '%'"></button>
+                            <button @click="zoom = Math.min(200, zoom + 25)" class="h-7 w-7 rounded-md bg-editor-bg/50 hover:bg-editor-surface-hover transition-colors flex items-center justify-center">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                 </svg>
                             </button>
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-1">
+                    <div class="flex items-center gap-2">
                         <!-- Transform buttons -->
-                        <button @click="toggleCropMode()" :class="cropMode ? 'bg-editor-accent' : 'bg-editor-surface-hover'"
-                            class="p-2 rounded-lg hover:bg-editor-border transition-colors group relative" title="Recortar">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
-                            </svg>
-                            <span class="absolute -bottom-0.5 -right-0.5 text-[9px] bg-editor-bg/80 px-1 rounded font-mono text-editor-text-muted">C</span>
-                        </button>
-                        <button @click="rotate(-90)" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors" title="Rotar izquierda">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
-                            </svg>
-                        </button>
-                        <button @click="rotate(90)" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors relative" title="Rotar derecha">
-                            <svg class="w-5 h-5 transform scale-x-[-1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
-                            </svg>
-                            <span class="absolute -bottom-0.5 -right-0.5 text-[9px] bg-editor-bg/80 px-1 rounded font-mono text-editor-text-muted">R</span>
-                        </button>
-                        <button @click="flip('h')" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors relative" title="Voltear horizontal">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12M8 17h12M4 7v10"/>
-                            </svg>
-                            <span class="absolute -bottom-0.5 -right-0.5 text-[9px] bg-editor-bg/80 px-1 rounded font-mono text-editor-text-muted">H</span>
-                        </button>
-                        <button @click="flip('v')" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors relative" title="Voltear vertical">
-                            <svg class="w-5 h-5 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12M8 17h12M4 7v10"/>
-                            </svg>
-                            <span class="absolute -bottom-0.5 -right-0.5 text-[9px] bg-editor-bg/80 px-1 rounded font-mono text-editor-text-muted">V</span>
-                        </button>
+                        <div class="flex items-center gap-1">
+                            <button @click="toggleCropMode()" :class="cropMode ? 'bg-editor-accent' : 'bg-editor-bg/50 hover:bg-editor-surface-hover'"
+                                class="h-7 px-2 rounded-md transition-colors flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+                                </svg>
+                                <kbd class="kbd">C</kbd>
+                            </button>
+                            <button @click="rotate(90)" class="h-7 px-2 rounded-md bg-editor-bg/50 hover:bg-editor-surface-hover transition-colors flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 transform scale-x-[-1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                                </svg>
+                                <kbd class="kbd">R</kbd>
+                            </button>
+                            <button @click="flip('h')" class="h-7 px-2 rounded-md bg-editor-bg/50 hover:bg-editor-surface-hover transition-colors flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12M8 17h12M4 7v10"/>
+                                </svg>
+                                <kbd class="kbd">H</kbd>
+                            </button>
+                            <button @click="flip('v')" class="h-7 px-2 rounded-md bg-editor-bg/50 hover:bg-editor-surface-hover transition-colors flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12M8 17h12M4 7v10"/>
+                                </svg>
+                                <kbd class="kbd">V</kbd>
+                            </button>
+                        </div>
 
-                        <div class="w-px h-6 bg-editor-border mx-1"></div>
+                        <div class="w-px h-5 bg-editor-border/50"></div>
 
                         <!-- Undo/Redo -->
-                        <button @click="undo()" :disabled="undoStack.length === 0"
-                            :class="undoStack.length === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-editor-border'"
-                            class="p-2 bg-editor-surface-hover rounded-lg transition-colors relative" title="Deshacer">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
-                            </svg>
-                            <span class="absolute -bottom-0.5 -right-0.5 text-[9px] bg-editor-bg/80 px-0.5 rounded font-mono text-editor-text-muted">⌘Z</span>
-                        </button>
-                        <button @click="redo()" :disabled="redoStack.length === 0"
-                            :class="redoStack.length === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-editor-border'"
-                            class="p-2 bg-editor-surface-hover rounded-lg transition-colors relative" title="Rehacer">
-                            <svg class="w-5 h-5 transform scale-x-[-1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
-                            </svg>
-                            <span class="absolute -bottom-0.5 -right-0.5 text-[9px] bg-editor-bg/80 px-0.5 rounded font-mono text-editor-text-muted">⌘Y</span>
-                        </button>
+                        <div class="flex items-center gap-1">
+                            <button @click="undo()" :disabled="undoStack.length === 0"
+                                :class="undoStack.length === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-editor-surface-hover'"
+                                class="h-7 px-2 rounded-md bg-editor-bg/50 transition-colors flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                                </svg>
+                                <kbd class="kbd">⌘Z</kbd>
+                            </button>
+                            <button @click="redo()" :disabled="redoStack.length === 0"
+                                :class="redoStack.length === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-editor-surface-hover'"
+                                class="h-7 px-2 rounded-md bg-editor-bg/50 transition-colors flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 transform scale-x-[-1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                                </svg>
+                                <kbd class="kbd">⌘Y</kbd>
+                            </button>
+                        </div>
 
-                        <div class="w-px h-6 bg-editor-border mx-1"></div>
+                        <div class="w-px h-5 bg-editor-border/50"></div>
 
-                        <button @click="resetAdjustments()" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors relative" title="Resetear">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <!-- Reset -->
+                        <button @click="resetAdjustments()" class="h-7 px-2 rounded-md bg-editor-bg/50 hover:bg-editor-surface-hover transition-colors flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                             </svg>
-                            <span class="absolute -bottom-0.5 -right-0.5 text-[9px] bg-editor-bg/80 px-0.5 rounded font-mono text-editor-text-muted">Del</span>
+                            <kbd class="kbd">Del</kbd>
                         </button>
-                        <button @click="saveVersion()" class="px-3 py-2 bg-editor-accent hover:bg-editor-accent-hover rounded-lg text-sm font-medium transition-colors flex items-center gap-2" title="Guardar versión">
-                            <span>Guardar</span>
-                            <span class="text-[10px] opacity-70 font-mono bg-white/10 px-1 rounded">⌘S</span>
+
+                        <!-- Save -->
+                        <button @click="saveVersion()" class="h-7 px-3 bg-editor-accent hover:bg-editor-accent-hover rounded-md text-xs font-medium transition-colors flex items-center gap-2">
+                            Guardar
+                            <kbd class="kbd kbd-light">⌘S</kbd>
                         </button>
                     </div>
                 </div>
