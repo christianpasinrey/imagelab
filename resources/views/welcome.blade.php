@@ -111,9 +111,6 @@
 
         .step:nth-child(1) { animation-delay: 0.1s; }
         .step:nth-child(2) { animation-delay: 0.3s; }
-        .step:nth-child(3) { animation-delay: 0.5s; }
-        .step:nth-child(4) { animation-delay: 0.7s; }
-        .step:nth-child(5) { animation-delay: 0.9s; }
 
         .step:nth-child(even) {
             flex-direction: row-reverse;
@@ -537,9 +534,7 @@
 
     <!-- Divider -->
     <div class="divider">
-        <div class="divider-line">
-            <h2>El Mural</h2>
-        </div>
+        <div class="divider-line"></div>
     </div>
 
     <!-- Gallery Section -->
