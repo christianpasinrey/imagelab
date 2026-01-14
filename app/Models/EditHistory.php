@@ -10,6 +10,7 @@ class EditHistory extends Model
     protected $fillable = [
         'image_id',
         'adjustments',
+        'thumbnail',
         'version_number',
     ];
 

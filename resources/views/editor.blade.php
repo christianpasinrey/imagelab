@@ -262,18 +262,37 @@
 
                     <!-- History Tab -->
                     <div x-show="activeTab === 'history'" class="p-4">
-                        <div class="space-y-2">
+                        <div class="space-y-3">
                             <template x-for="version in history" :key="version.id">
                                 <div @click="loadVersion(version)"
-                                    class="p-3 bg-editor-bg rounded-lg cursor-pointer hover:bg-editor-surface-hover transition-colors">
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm font-medium">Versión <span x-text="version.version"></span></span>
+                                    class="bg-editor-bg rounded-lg cursor-pointer hover:bg-editor-surface-hover transition-colors overflow-hidden group">
+                                    <!-- Thumbnail -->
+                                    <div class="relative aspect-video bg-editor-surface">
+                                        <img x-show="version.thumbnail" :src="version.thumbnail"
+                                            class="w-full h-full object-cover">
+                                        <div x-show="!version.thumbnail" class="w-full h-full flex items-center justify-center text-editor-text-muted">
+                                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                            </svg>
+                                        </div>
+                                        <!-- Overlay on hover -->
+                                        <div class="absolute inset-0 bg-editor-accent/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <span class="text-xs font-medium bg-editor-surface/90 px-2 py-1 rounded">Cargar</span>
+                                        </div>
+                                    </div>
+                                    <!-- Info -->
+                                    <div class="p-2 flex justify-between items-center">
+                                        <span class="text-sm font-medium">v<span x-text="version.version"></span></span>
                                         <span class="text-xs text-editor-text-muted" x-text="version.created_at"></span>
                                     </div>
                                 </div>
                             </template>
-                            <div x-show="history.length === 0" class="text-center py-4 text-editor-text-muted text-sm">
-                                Sin historial aún
+                            <div x-show="history.length === 0" class="text-center py-8 text-editor-text-muted text-sm">
+                                <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Sin historial aún<br>
+                                <span class="text-xs">Guarda versiones para verlas aquí</span>
                             </div>
                         </div>
                     </div>
