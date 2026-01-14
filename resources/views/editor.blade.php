@@ -864,6 +864,7 @@
                 canvas: null,
                 ctx: null,
                 originalImageData: null,
+                sourceImage: null,
                 comparisonSrc: null,
                 canvasWidth: 0,
                 canvasHeight: 0,
@@ -1023,6 +1024,23 @@
                             this.editTags = (this.currentImage.tags || []).join(', ');
                             await this.fetchHistory();
                         });
+                    } else {
+                        // Check for source parameter to load external image
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const sourceUrl = urlParams.get('source');
+                        if (sourceUrl) {
+                            this.$nextTick(async () => {
+                                this.canvas = this.$refs.canvas;
+                                this.ctx = this.canvas?.getContext('2d');
+                                if (this.canvas && this.ctx) {
+                                    await this.loadImageToCanvas(sourceUrl);
+                                    // Extract filename for default title
+                                    const filename = sourceUrl.split('/').pop().replace(/\.[^.]+$/, '');
+                                    this.editTitle = filename;
+                                    this.sourceImage = sourceUrl;
+                                }
+                            });
+                        }
                     }
                 },
 
@@ -1578,6 +1596,12 @@
                 },
 
                 async saveVersion() {
+                    // If no currentImage but we have a sourceImage, create new image first
+                    if (!this.currentImage && this.sourceImage) {
+                        await this.saveAsNewImage();
+                        return;
+                    }
+
                     if (!this.currentImage) return;
                     this.loading = true;
 
@@ -1611,6 +1635,51 @@
                     } catch (e) {
                         console.error('Error saving version:', e);
                         this.showToast('Error al guardar la versión', 'error');
+                    }
+
+                    this.loading = false;
+                },
+
+                async saveAsNewImage() {
+                    this.loading = true;
+
+                    try {
+                        // Convert canvas to blob
+                        const blob = await new Promise(resolve => {
+                            this.canvas.toBlob(resolve, 'image/png', 0.92);
+                        });
+
+                        const formData = new FormData();
+                        formData.append('image', blob, `${this.editTitle || 'meme'}.png`);
+                        if (this.editTitle) formData.append('title', this.editTitle);
+                        if (this.editTags) formData.append('tags', this.editTags);
+
+                        const res = await fetch('/images', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            },
+                            body: formData,
+                        });
+
+                        if (res.ok) {
+                            const data = await res.json();
+                            data.image.can_edit = true;
+                            this.images.unshift(data.image);
+                            this.currentImage = data.image;
+                            this.canEdit = true;
+                            this.sourceImage = null; // Clear source since we now have a real image
+
+                            // Update URL without reload
+                            window.history.replaceState({}, '', `/editor/${data.image.id}`);
+
+                            this.showToast('Imagen guardada al mural', 'success');
+                        } else {
+                            this.showToast('Error al guardar la imagen', 'error');
+                        }
+                    } catch (e) {
+                        console.error('Error saving new image:', e);
+                        this.showToast('Error al guardar la imagen', 'error');
                     }
 
                     this.loading = false;
