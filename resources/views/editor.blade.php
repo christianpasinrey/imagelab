@@ -7,62 +7,198 @@
     <title>ImageLab - Editor de Imágenes</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
+        :root {
+            --primary: #8b5cf6;
+            --primary-light: #a78bfa;
+            --accent: #06b6d4;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            background: #0a0a0f;
+        }
+
+        /* Animated background */
+        .editor-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background:
+                radial-gradient(ellipse 50% 50% at 0% 0%, rgba(139, 92, 246, 0.15), transparent),
+                radial-gradient(ellipse 50% 50% at 100% 100%, rgba(6, 182, 212, 0.1), transparent);
+        }
+
         .gradient-text {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--accent) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
+
         .btn-gradient {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+            transition: all 0.3s ease;
         }
+
         .btn-gradient:hover {
-            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 30px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Glassmorphism panels */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Input styling */
+        .glass-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: #fff;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+
+        .glass-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        .glass-input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Slider styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: transparent;
+            width: 100%;
+        }
+
+        input[type="range"]::-webkit-slider-track {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            border-radius: 50%;
+            margin-top: -6px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+            transition: transform 0.2s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        /* Tab styling */
+        .tab-btn {
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            color: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tab-btn.active {
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
         }
     </style>
 </head>
-<body class="bg-editor-bg text-editor-text min-h-screen">
-    <div x-data="imageEditor()" x-init="init()" class="h-screen flex flex-col">
+<body class="text-white min-h-screen" style="background: #0a0a0f;">
+    <!-- Animated Background -->
+    <div class="editor-bg"></div>
+
+    <div x-data="imageEditor()" x-init="init()" class="h-screen flex flex-col relative z-10">
         <!-- Header -->
-        <header style="background: rgba(9,9,11,0.8); backdrop-filter: blur(12px);" class="border-b border-editor-border px-4 py-3 flex items-center justify-between">
+        <header class="glass-panel border-b px-5 py-3 flex items-center justify-between">
             <div class="flex items-center gap-4">
                 <!-- Logo/Home Link -->
-                <a href="/" class="flex items-center gap-2.5 text-decoration-none hover:opacity-80 transition-opacity">
-                    <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">
-                        <svg width="18" height="18" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
+                <a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);">
+                        <svg width="20" height="20" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
                     </div>
-                    <span class="text-lg font-semibold tracking-tight">ImageLab</span>
+                    <span class="text-xl font-bold tracking-tight">ImageLab</span>
                 </a>
 
                 <!-- Current Image Info -->
                 <template x-if="currentImage">
-                    <div class="flex items-center gap-2 text-sm text-editor-text-muted">
+                    <div class="flex items-center gap-2 text-sm" style="color: rgba(255,255,255,0.5);">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                         </svg>
                         <span x-text="currentImage?.title || currentImage?.name"></span>
                         <template x-if="canEdit">
-                            <span class="px-2 py-0.5 text-xs rounded-full bg-green-500/20 text-green-400">Editable</span>
+                            <span class="px-2.5 py-1 text-xs rounded-full font-medium" style="background: rgba(34, 197, 94, 0.15); color: #4ade80;">Editable</span>
                         </template>
                     </div>
                 </template>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-3">
                 <button @click="showUploadModal = true"
-                    class="btn-gradient px-4 py-2 rounded-lg text-sm font-medium transition-all hover:scale-[1.02] flex items-center gap-2">
+                    class="btn-gradient px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
                     </svg>
                     Subir Imagen
                 </button>
                 <button @click="showExportModal = true" x-show="currentImage"
-                    class="px-4 py-2 bg-editor-surface-hover hover:bg-editor-border rounded-lg text-sm font-medium transition-colors border border-editor-border">
+                    class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all glass-card hover:border-purple-500/50" style="color: rgba(255,255,255,0.8);">
                     Exportar
                 </button>
             </div>
@@ -71,61 +207,63 @@
         <!-- Main Content -->
         <div class="flex-1 flex overflow-hidden">
             <!-- Sidebar - Gallery -->
-            <aside class="w-52 bg-editor-surface border-r border-editor-border flex flex-col">
+            <aside class="w-56 glass-panel border-r flex flex-col">
                 <!-- My Images Section -->
-                <div class="p-3 border-b border-editor-border">
-                    <h2 class="text-xs font-semibold text-editor-text-muted uppercase tracking-wider">Mis imágenes</h2>
+                <div class="p-4 border-b" style="border-color: var(--glass-border);">
+                    <h2 class="text-xs font-semibold uppercase tracking-wider" style="color: rgba(255,255,255,0.4);">Mis imágenes</h2>
                 </div>
-                <div class="flex-1 overflow-y-auto p-2 space-y-2">
+                <div class="flex-1 overflow-y-auto p-3 space-y-3">
                     <template x-for="image in images" :key="image.id">
                         <div @click="selectImage(image)"
-                            :class="{'ring-2 ring-purple-500': currentImage?.id === image.id}"
-                            class="cursor-pointer rounded-lg overflow-hidden bg-editor-bg hover:ring-2 hover:ring-editor-border transition-all group relative">
+                            :class="{'ring-2 ring-purple-500 shadow-lg shadow-purple-500/20': currentImage?.id === image.id}"
+                            class="cursor-pointer rounded-xl overflow-hidden glass-card group relative transition-all duration-300">
                             <img :src="image.thumb || image.preview || image.url" :alt="image.title || image.name"
-                                class="w-full h-28 object-cover">
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                            <div class="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                class="w-full h-32 object-cover transition-transform duration-500 group-hover:scale-105">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            <div class="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                 <p class="text-xs font-medium truncate" x-text="image.title || image.name"></p>
                             </div>
                             <button @click.stop="deleteImage(image.id)"
-                                class="absolute top-1.5 right-1.5 p-1 bg-red-500/90 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600">
+                                class="absolute top-2 right-2 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110" style="background: rgba(239, 68, 68, 0.9);">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                 </svg>
                             </button>
                         </div>
                     </template>
-                    <div x-show="images.length === 0" class="text-center py-8 text-editor-text-muted text-xs">
-                        <svg class="w-10 h-10 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                        No hay imágenes.<br>Sube una para empezar.
+                    <div x-show="images.length === 0" class="text-center py-10" style="color: rgba(255,255,255,0.3);">
+                        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl glass-card flex items-center justify-center">
+                            <svg class="w-8 h-8 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <p class="text-xs">No hay imágenes.<br>Sube una para empezar.</p>
                     </div>
                 </div>
 
                 <!-- Image Info (when selected and editable) -->
                 <template x-if="currentImage && canEdit">
-                    <div class="border-t border-editor-border p-3 space-y-3">
+                    <div class="border-t p-4 space-y-4" style="border-color: var(--glass-border);">
                         <div>
-                            <label class="block text-xs font-medium text-editor-text-muted mb-1">Título</label>
+                            <label class="block text-xs font-medium mb-2" style="color: rgba(255,255,255,0.5);">Título</label>
                             <input type="text"
                                 x-model="editTitle"
                                 @blur="updateImageMeta()"
                                 @keydown.enter="updateImageMeta()"
-                                class="w-full bg-editor-bg border border-editor-border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500">
+                                class="glass-input w-full">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-editor-text-muted mb-1">Tags (separados por coma)</label>
+                            <label class="block text-xs font-medium mb-2" style="color: rgba(255,255,255,0.5);">Tags (separados por coma)</label>
                             <input type="text"
                                 x-model="editTags"
                                 @blur="updateImageMeta()"
                                 @keydown.enter="updateImageMeta()"
                                 placeholder="foto, retrato, paisaje..."
-                                class="w-full bg-editor-bg border border-editor-border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500">
+                                class="glass-input w-full">
                         </div>
-                        <div class="flex flex-wrap gap-1" x-show="currentImage.tags && currentImage.tags.length > 0">
+                        <div class="flex flex-wrap gap-1.5" x-show="currentImage.tags && currentImage.tags.length > 0">
                             <template x-for="tag in currentImage.tags" :key="tag">
-                                <span class="px-2 py-0.5 text-xs rounded-full bg-purple-500/20 text-purple-300" x-text="tag"></span>
+                                <span class="px-2.5 py-1 text-xs rounded-full font-medium" style="background: rgba(139, 92, 246, 0.2); color: #a78bfa;" x-text="tag"></span>
                             </template>
                         </div>
                     </div>
