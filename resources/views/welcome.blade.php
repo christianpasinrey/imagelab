@@ -281,25 +281,25 @@
 
         /* Masonry */
         .masonry {
-            columns: 4;
-            column-gap: 20px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: 10px;
+            gap: 20px;
         }
 
-        @media (max-width: 1400px) { .masonry { columns: 3; } }
-        @media (max-width: 1000px) { .masonry { columns: 2; } }
-        @media (max-width: 600px) { .masonry { columns: 1; } }
+        @media (max-width: 1400px) { .masonry { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 1000px) { .masonry { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px) { .masonry { grid-template-columns: 1fr; } }
 
         .masonry-item {
-            break-inside: avoid;
-            margin-bottom: 20px;
             opacity: 0;
-            transform: translateY(30px);
-            transition: all 0.5s ease;
+            transform: translateY(30px) scale(0.95);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .masonry-item.visible {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
         }
 
         .meme-card {
@@ -538,7 +538,7 @@
                 $thumb = $media?->getUrl('preview');
             @endphp
             @if($thumb)
-            <div class="masonry-item" data-delay="{{ $index * 80 }}">
+            <div class="masonry-item">
                 <a href="/editor/{{ $image->id }}" class="meme-card">
                     <img src="{{ $thumb }}" alt="{{ $image->title }}" loading="lazy">
                     <div class="meme-card-info">
@@ -596,22 +596,67 @@
     </section>
 
     <script>
-        // Intersection Observer for masonry animations
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const delay = entry.target.dataset.delay || 0;
-                    setTimeout(() => {
-                        entry.target.classList.add('visible');
-                    }, delay);
-                    observer.unobserve(entry.target);
+        // Masonry layout calculation
+        function resizeMasonryItem(item) {
+            const grid = document.querySelector('.masonry');
+            if (!grid) return;
+
+            const rowGap = parseInt(window.getComputedStyle(grid).getPropertyValue('gap')) || 20;
+            const rowHeight = 10; // grid-auto-rows value
+            const card = item.querySelector('.meme-card');
+            if (!card) return;
+
+            const contentHeight = card.getBoundingClientRect().height;
+            const rowSpan = Math.ceil((contentHeight + rowGap) / (rowHeight + rowGap));
+            item.style.gridRowEnd = 'span ' + rowSpan;
+        }
+
+        function resizeAllMasonryItems() {
+            document.querySelectorAll('.masonry-item').forEach(resizeMasonryItem);
+        }
+
+        // Wait for images to load then calculate masonry
+        function initMasonry() {
+            const items = document.querySelectorAll('.masonry-item');
+            let loadedCount = 0;
+            const totalImages = items.length;
+
+            if (totalImages === 0) return;
+
+            items.forEach((item, index) => {
+                const img = item.querySelector('img');
+                if (img) {
+                    if (img.complete) {
+                        resizeMasonryItem(item);
+                        loadedCount++;
+                        showItem(item, index);
+                    } else {
+                        img.onload = () => {
+                            resizeMasonryItem(item);
+                            loadedCount++;
+                            showItem(item, index);
+                        };
+                        img.onerror = () => {
+                            loadedCount++;
+                            showItem(item, index);
+                        };
+                    }
+                } else {
+                    resizeMasonryItem(item);
+                    showItem(item, index);
                 }
             });
-        }, { threshold: 0.1 });
+        }
 
-        document.querySelectorAll('.masonry-item').forEach(item => {
-            observer.observe(item);
-        });
+        function showItem(item, index) {
+            setTimeout(() => {
+                item.classList.add('visible');
+            }, index * 100);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', initMasonry);
+        window.addEventListener('resize', resizeAllMasonryItems);
     </script>
 </body>
 </html>
