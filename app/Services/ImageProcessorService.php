@@ -2,94 +2,163 @@
 
 namespace App\Services;
 
-use Spatie\Image\Image;
-use Spatie\Image\Enums\Fit;
-
 class ImageProcessorService
 {
     public function process(string $sourcePath, array $adjustments): string
     {
-        $tempPath = storage_path('app/temp/' . uniqid('processed_') . '.jpg');
+        $tempDir = storage_path('app' . DIRECTORY_SEPARATOR . 'temp');
 
-        if (!is_dir(dirname($tempPath))) {
-            mkdir(dirname($tempPath), 0755, true);
+        if (!is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
         }
 
-        $image = Image::load($sourcePath);
+        $tempPath = $tempDir . DIRECTORY_SEPARATOR . uniqid('processed_') . '.jpg';
+
+        // Load source image
+        $imageInfo = getimagesize($sourcePath);
+        if (!$imageInfo) {
+            throw new \RuntimeException("Cannot read image: {$sourcePath}");
+        }
+
+        $srcImage = $this->loadImage($sourcePath, $imageInfo['mime']);
+        if (!$srcImage) {
+            throw new \RuntimeException("Failed to load image: {$sourcePath}");
+        }
+
+        $width = imagesx($srcImage);
+        $height = imagesy($srcImage);
 
         // Apply rotation
         if (!empty($adjustments['rotation'])) {
-            $image->orientation($adjustments['rotation']);
+            $rotation = -$adjustments['rotation']; // GD rotates counter-clockwise
+            $srcImage = imagerotate($srcImage, $rotation, 0);
+            $width = imagesx($srcImage);
+            $height = imagesy($srcImage);
         }
 
         // Apply flip
         if (!empty($adjustments['flipH'])) {
-            $image->flip('h');
+            imageflip($srcImage, IMG_FLIP_HORIZONTAL);
         }
         if (!empty($adjustments['flipV'])) {
-            $image->flip('v');
+            imageflip($srcImage, IMG_FLIP_VERTICAL);
         }
 
-        // Apply crop if specified
+        // Apply crop
         if (!empty($adjustments['crop'])) {
             $crop = $adjustments['crop'];
-            $image->manualCrop(
-                (int) $crop['width'],
-                (int) $crop['height'],
-                (int) $crop['x'],
-                (int) $crop['y']
-            );
+            $cropped = imagecrop($srcImage, [
+                'x' => (int)$crop['x'],
+                'y' => (int)$crop['y'],
+                'width' => (int)$crop['width'],
+                'height' => (int)$crop['height'],
+            ]);
+            if ($cropped) {
+                imagedestroy($srcImage);
+                $srcImage = $cropped;
+                $width = imagesx($srcImage);
+                $height = imagesy($srcImage);
+            }
         }
 
-        // Apply brightness (-100 to 100)
-        if (isset($adjustments['brightness']) && $adjustments['brightness'] != 0) {
-            $image->brightness($adjustments['brightness']);
+        // Apply color adjustments using imagefilter
+        $brightness = $adjustments['brightness'] ?? 0;
+        $contrast = $adjustments['contrast'] ?? 0;
+
+        if ($brightness != 0) {
+            // GD brightness is -255 to 255, our input is -100 to 100
+            $gdBrightness = (int)($brightness * 2.55);
+            imagefilter($srcImage, IMG_FILTER_BRIGHTNESS, $gdBrightness);
         }
 
-        // Apply contrast (-100 to 100)
-        if (isset($adjustments['contrast']) && $adjustments['contrast'] != 0) {
-            $image->contrast($adjustments['contrast']);
-        }
-
-        // Apply gamma for exposure simulation (0.1 to 9.99)
-        if (isset($adjustments['exposure']) && $adjustments['exposure'] != 0) {
-            // Convert -100 to 100 range to gamma range (0.5 to 2.0)
-            $gamma = 1 + ($adjustments['exposure'] / 100);
-            $gamma = max(0.5, min(2.0, $gamma));
-            $image->gamma($gamma);
+        if ($contrast != 0) {
+            // GD contrast is -100 to 100 (inverted: -100 = more contrast)
+            $gdContrast = (int)(-$contrast);
+            imagefilter($srcImage, IMG_FILTER_CONTRAST, $gdContrast);
         }
 
         // Apply filter
-        if (!empty($adjustments['filter'])) {
-            $this->applyFilter($image, $adjustments['filter']);
+        $filter = $adjustments['filter'] ?? null;
+        if ($filter) {
+            $this->applyFilter($srcImage, $filter);
         }
 
-        $image->quality(90)->save($tempPath);
+        // Save the processed image
+        $result = imagejpeg($srcImage, $tempPath, 90);
+        imagedestroy($srcImage);
+
+        if (!$result || !file_exists($tempPath)) {
+            throw new \RuntimeException("Failed to save processed image to: {$tempPath}");
+        }
 
         return $tempPath;
     }
 
     public function export(string $sourcePath, string $format, int $quality): string
     {
-        $tempPath = storage_path('app/temp/' . uniqid('export_') . '.' . $format);
+        $tempDir = storage_path('app' . DIRECTORY_SEPARATOR . 'temp');
 
-        if (!is_dir(dirname($tempPath))) {
-            mkdir(dirname($tempPath), 0755, true);
+        if (!is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
         }
 
-        $image = Image::load($sourcePath);
+        $tempPath = $tempDir . DIRECTORY_SEPARATOR . uniqid('export_') . '.' . $format;
 
-        $image->quality($quality)->save($tempPath);
+        $imageInfo = getimagesize($sourcePath);
+        if (!$imageInfo) {
+            throw new \RuntimeException("Cannot read image: {$sourcePath}");
+        }
+
+        $srcImage = $this->loadImage($sourcePath, $imageInfo['mime']);
+        if (!$srcImage) {
+            throw new \RuntimeException("Failed to load image: {$sourcePath}");
+        }
+
+        $result = match ($format) {
+            'png' => imagepng($srcImage, $tempPath, (int)(9 - ($quality / 11))),
+            'webp' => imagewebp($srcImage, $tempPath, $quality),
+            default => imagejpeg($srcImage, $tempPath, $quality),
+        };
+
+        imagedestroy($srcImage);
+
+        if (!$result || !file_exists($tempPath)) {
+            throw new \RuntimeException("Failed to export image to: {$tempPath}");
+        }
 
         return $tempPath;
     }
 
-    private function applyFilter(Image $image, string $filter): void
+    private function loadImage(string $path, string $mime): ?\GdImage
     {
-        match ($filter) {
-            'grayscale', 'bw' => $image->greyscale(),
-            'sepia' => $image->sepia(),
+        return match ($mime) {
+            'image/jpeg' => imagecreatefromjpeg($path),
+            'image/png' => imagecreatefrompng($path),
+            'image/gif' => imagecreatefromgif($path),
+            'image/webp' => imagecreatefromwebp($path),
             default => null,
         };
+    }
+
+    private function applyFilter(\GdImage $image, string $filter): void
+    {
+        match ($filter) {
+            'bw', 'grayscale' => imagefilter($image, IMG_FILTER_GRAYSCALE),
+            'sepia' => $this->applySepia($image),
+            'noir' => $this->applyNoir($image),
+            default => null,
+        };
+    }
+
+    private function applySepia(\GdImage $image): void
+    {
+        imagefilter($image, IMG_FILTER_GRAYSCALE);
+        imagefilter($image, IMG_FILTER_COLORIZE, 90, 60, 30);
+    }
+
+    private function applyNoir(\GdImage $image): void
+    {
+        imagefilter($image, IMG_FILTER_GRAYSCALE);
+        imagefilter($image, IMG_FILTER_CONTRAST, -20);
     }
 }

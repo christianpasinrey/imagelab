@@ -98,6 +98,9 @@ class ImageController extends Controller
             $adjustments
         );
 
+        // Read base64 BEFORE addMedia (which moves the file)
+        $base64 = base64_encode(file_get_contents($processedPath));
+
         if ($saveVersion) {
             $versionNumber = $image->editHistories()->max('version_number') + 1;
 
@@ -110,11 +113,7 @@ class ImageController extends Controller
                 'thumbnail' => $thumbnail,
                 'version_number' => $versionNumber,
             ]);
-        }
-
-        $base64 = base64_encode(file_get_contents($processedPath));
-
-        if (!$saveVersion) {
+        } else {
             @unlink($processedPath);
         }
 

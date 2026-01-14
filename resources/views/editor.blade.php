@@ -76,7 +76,10 @@
                     <!-- Editor canvas -->
                     <div x-show="currentImage" class="relative select-none" :style="`transform: scale(${zoom/100})`">
                         <!-- Canvas for edited preview -->
-                        <canvas x-ref="canvas" class="max-w-full max-h-[70vh] block select-none" :class="{'opacity-50': isProcessing}"></canvas>
+                        <canvas x-ref="canvas"
+                            class="max-w-full max-h-[70vh] block select-none"
+                            :class="{'opacity-50': isProcessing, 'cursor-move': textPreviewActive && activeTab === 'text'}"
+                            @mousedown="startTextDrag($event)"></canvas>
 
                         <!-- Original image for comparison (overlaid on right side) -->
                         <template x-if="showComparison && comparisonSrc">
@@ -145,7 +148,7 @@
                     <div class="flex items-center gap-2">
                         <!-- Transform buttons -->
                         <button @click="toggleCropMode()" :class="cropMode ? 'bg-editor-accent' : 'bg-editor-surface-hover'"
-                            class="p-2 rounded-lg hover:bg-editor-border transition-colors" title="Recortar">
+                            class="p-2 rounded-lg hover:bg-editor-border transition-colors" title="Recortar (C)">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
                             </svg>
@@ -155,17 +158,17 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
                             </svg>
                         </button>
-                        <button @click="rotate(90)" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors" title="Rotar derecha">
+                        <button @click="rotate(90)" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors" title="Rotar derecha (R)">
                             <svg class="w-5 h-5 transform scale-x-[-1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
                             </svg>
                         </button>
-                        <button @click="flip('h')" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors" title="Voltear horizontal">
+                        <button @click="flip('h')" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors" title="Voltear horizontal (H)">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12M8 17h12M4 7v10"/>
                             </svg>
                         </button>
-                        <button @click="flip('v')" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors" title="Voltear vertical">
+                        <button @click="flip('v')" class="p-2 bg-editor-surface-hover rounded-lg hover:bg-editor-border transition-colors" title="Voltear vertical (V)">
                             <svg class="w-5 h-5 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12M8 17h12M4 7v10"/>
                             </svg>
@@ -266,100 +269,157 @@
                     </div>
 
                     <!-- Text Tab -->
-                    <div x-show="activeTab === 'text'" class="p-4 space-y-4">
+                    <div x-show="activeTab === 'text'" class="p-4 space-y-4 text-xs">
                         <!-- Text Input -->
                         <div>
-                            <label class="block text-sm font-medium mb-2">Texto</label>
-                            <input type="text" x-model="textOverlay.content"
+                            <label class="block text-sm font-medium mb-1">Texto</label>
+                            <textarea x-model="textOverlay.content"
                                 @input="renderTextPreview()"
                                 placeholder="Escribe tu texto..."
-                                class="w-full bg-editor-bg border border-editor-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-editor-accent">
+                                rows="2"
+                                class="w-full bg-editor-bg border border-editor-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-editor-accent resize-none"></textarea>
                         </div>
 
-                        <!-- Font -->
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Fuente</label>
-                            <select x-model="textOverlay.font" @change="renderTextPreview()"
-                                class="w-full bg-editor-bg border border-editor-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-editor-accent">
-                                <option value="Arial">Arial</option>
-                                <option value="Helvetica">Helvetica</option>
-                                <option value="Georgia">Georgia</option>
-                                <option value="Times New Roman">Times New Roman</option>
-                                <option value="Courier New">Courier New</option>
-                                <option value="Verdana">Verdana</option>
-                                <option value="Impact">Impact</option>
-                            </select>
-                        </div>
-
-                        <!-- Size -->
-                        <div>
-                            <div class="flex justify-between mb-2">
-                                <label class="text-sm font-medium">Tamaño</label>
-                                <span class="text-sm text-editor-text-muted" x-text="textOverlay.size + 'px'"></span>
+                        <!-- Font & Weight -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-medium mb-1">Fuente</label>
+                                <select x-model="textOverlay.font" @change="renderTextPreview()"
+                                    class="w-full bg-editor-bg border border-editor-border rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-editor-accent">
+                                    <option value="Arial">Arial</option>
+                                    <option value="Helvetica">Helvetica</option>
+                                    <option value="Georgia">Georgia</option>
+                                    <option value="Times New Roman">Times New Roman</option>
+                                    <option value="Courier New">Courier New</option>
+                                    <option value="Verdana">Verdana</option>
+                                    <option value="Impact">Impact</option>
+                                </select>
                             </div>
-                            <input type="range" min="12" max="200" x-model.number="textOverlay.size"
-                                @input="renderTextPreview()" class="w-full">
+                            <div>
+                                <label class="block font-medium mb-1">Grosor</label>
+                                <select x-model.number="textOverlay.weight" @change="renderTextPreview()"
+                                    class="w-full bg-editor-bg border border-editor-border rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-editor-accent">
+                                    <template x-for="w in fontWeights" :key="w.value">
+                                        <option :value="w.value" x-text="w.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Size & Opacity -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <label class="font-medium">Tamaño</label>
+                                    <span class="text-editor-text-muted" x-text="textOverlay.size + 'px'"></span>
+                                </div>
+                                <input type="range" min="12" max="300" x-model.number="textOverlay.size"
+                                    @input="renderTextPreview()" class="w-full">
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <label class="font-medium">Opacidad</label>
+                                    <span class="text-editor-text-muted" x-text="textOverlay.opacity + '%'"></span>
+                                </div>
+                                <input type="range" min="10" max="100" x-model.number="textOverlay.opacity"
+                                    @input="renderTextPreview()" class="w-full">
+                            </div>
+                        </div>
+
+                        <!-- Letter Spacing & Line Height -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <label class="font-medium">Espaciado</label>
+                                    <span class="text-editor-text-muted" x-text="textOverlay.letterSpacing + 'px'"></span>
+                                </div>
+                                <input type="range" min="-10" max="50" x-model.number="textOverlay.letterSpacing"
+                                    @input="renderTextPreview()" class="w-full">
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <label class="font-medium">Alt. línea</label>
+                                    <span class="text-editor-text-muted" x-text="textOverlay.lineHeight.toFixed(1)"></span>
+                                </div>
+                                <input type="range" min="0.8" max="3" step="0.1" x-model.number="textOverlay.lineHeight"
+                                    @input="renderTextPreview()" class="w-full">
+                            </div>
                         </div>
 
                         <!-- Color -->
                         <div>
-                            <label class="block text-sm font-medium mb-2">Color</label>
+                            <label class="block font-medium mb-1">Color</label>
                             <div class="flex gap-2">
                                 <input type="color" x-model="textOverlay.color" @input="renderTextPreview()"
-                                    class="w-10 h-10 rounded cursor-pointer border-0">
+                                    class="w-8 h-8 rounded cursor-pointer border-0">
                                 <input type="text" x-model="textOverlay.color" @input="renderTextPreview()"
-                                    class="flex-1 bg-editor-bg border border-editor-border rounded-lg px-3 py-2 text-sm">
+                                    class="flex-1 bg-editor-bg border border-editor-border rounded px-2 py-1">
                             </div>
                         </div>
 
                         <!-- Position -->
                         <div>
-                            <label class="block text-sm font-medium mb-2">Posición</label>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="font-medium">Posición</label>
+                                <span x-show="textOverlay.position === 'custom'" class="text-[10px] text-editor-accent">Personalizada</span>
+                            </div>
                             <div class="grid grid-cols-3 gap-1">
                                 <template x-for="pos in textPositions" :key="pos.id">
-                                    <button @click="textOverlay.position = pos.id; renderTextPreview()"
+                                    <button @click="textOverlay.position = pos.id; textOverlay.customX = null; textOverlay.customY = null; renderTextPreview()"
                                         :class="textOverlay.position === pos.id ? 'bg-editor-accent' : 'bg-editor-bg hover:bg-editor-surface-hover'"
-                                        class="p-2 rounded text-xs transition-colors" x-text="pos.label">
+                                        class="p-1.5 rounded transition-colors" x-text="pos.label">
                                     </button>
                                 </template>
                             </div>
+                            <p class="text-editor-text-muted mt-1 text-[10px]">Arrastra el texto en la imagen para posicionarlo</p>
                         </div>
 
-                        <!-- Opacity -->
+                        <!-- Style Toggles -->
                         <div>
-                            <div class="flex justify-between mb-2">
-                                <label class="text-sm font-medium">Opacidad</label>
-                                <span class="text-sm text-editor-text-muted" x-text="textOverlay.opacity + '%'"></span>
-                            </div>
-                            <input type="range" min="10" max="100" x-model.number="textOverlay.opacity"
-                                @input="renderTextPreview()" class="w-full">
-                        </div>
-
-                        <!-- Blend Mode -->
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Modo de fusión</label>
-                            <select x-model="textOverlay.blendMode" @change="renderTextPreview()"
-                                class="w-full bg-editor-bg border border-editor-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-editor-accent">
-                                <template x-for="mode in blendModes" :key="mode.id">
-                                    <option :value="mode.id" x-text="mode.name"></option>
-                                </template>
-                            </select>
-                        </div>
-
-                        <!-- Style Options -->
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Estilo</label>
-                            <div class="flex gap-2">
-                                <button @click="textOverlay.bold = !textOverlay.bold; renderTextPreview()"
-                                    :class="textOverlay.bold ? 'bg-editor-accent' : 'bg-editor-bg'"
-                                    class="flex-1 py-2 rounded-lg text-sm font-bold transition-colors">B</button>
+                            <label class="block font-medium mb-1">Estilo</label>
+                            <div class="grid grid-cols-4 gap-1">
                                 <button @click="textOverlay.italic = !textOverlay.italic; renderTextPreview()"
                                     :class="textOverlay.italic ? 'bg-editor-accent' : 'bg-editor-bg'"
-                                    class="flex-1 py-2 rounded-lg text-sm italic transition-colors">I</button>
+                                    class="py-1.5 rounded italic transition-colors">I</button>
                                 <button @click="textOverlay.shadow = !textOverlay.shadow; renderTextPreview()"
                                     :class="textOverlay.shadow ? 'bg-editor-accent' : 'bg-editor-bg'"
-                                    class="flex-1 py-2 rounded-lg text-sm transition-colors">Sombra</button>
+                                    class="py-1.5 rounded transition-colors">Sombra</button>
+                                <button @click="textOverlay.outline = !textOverlay.outline; renderTextPreview()"
+                                    :class="textOverlay.outline ? 'bg-editor-accent' : 'bg-editor-bg'"
+                                    class="py-1.5 rounded transition-colors">Borde</button>
+                                <button @click="textOverlay.emboss = !textOverlay.emboss; renderTextPreview()"
+                                    :class="textOverlay.emboss ? 'bg-editor-accent' : 'bg-editor-bg'"
+                                    class="py-1.5 rounded transition-colors">Relieve</button>
                             </div>
+                        </div>
+
+                        <!-- Outline Options (shown when outline is active) -->
+                        <div x-show="textOverlay.outline" x-collapse class="space-y-2 pl-2 border-l-2 border-editor-accent">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <div class="flex justify-between mb-1">
+                                        <label class="font-medium">Grosor borde</label>
+                                        <span class="text-editor-text-muted" x-text="textOverlay.outlineWidth + 'px'"></span>
+                                    </div>
+                                    <input type="range" min="1" max="10" x-model.number="textOverlay.outlineWidth"
+                                        @input="renderTextPreview()" class="w-full">
+                                </div>
+                                <div>
+                                    <label class="block font-medium mb-1">Color borde</label>
+                                    <input type="color" x-model="textOverlay.outlineColor" @input="renderTextPreview()"
+                                        class="w-full h-7 rounded cursor-pointer border-0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Image Texture Toggle -->
+                        <div>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" x-model="textOverlay.imageTexture" @change="renderTextPreview()"
+                                    class="w-4 h-4 rounded border-editor-border bg-editor-bg text-editor-accent focus:ring-editor-accent">
+                                <span class="font-medium">Usar imagen como textura del texto</span>
+                            </label>
+                            <p class="text-editor-text-muted mt-1 text-[10px]">El texto revela la imagen original como relleno</p>
                         </div>
 
                         <!-- Actions -->
@@ -651,24 +711,33 @@
                     content: '',
                     font: 'Arial',
                     size: 48,
+                    weight: 400,
+                    letterSpacing: 0,
+                    lineHeight: 1.2,
                     color: '#ffffff',
                     opacity: 100,
                     position: 'center',
-                    bold: false,
+                    customX: null,
+                    customY: null,
                     italic: false,
                     shadow: true,
-                    blendMode: 'normal',
+                    outline: false,
+                    outlineWidth: 2,
+                    outlineColor: '#000000',
+                    imageTexture: false,
+                    emboss: false,
                 },
 
-                blendModes: [
-                    { id: 'normal', name: 'Normal' },
-                    { id: 'multiply', name: 'Multiplicar' },
-                    { id: 'screen', name: 'Trama' },
-                    { id: 'overlay', name: 'Superponer' },
-                    { id: 'color-burn', name: 'Subexp. color' },
-                    { id: 'color-dodge', name: 'Sobreexp. color' },
-                    { id: 'soft-light', name: 'Luz suave' },
-                    { id: 'hard-light', name: 'Luz fuerte' },
+                isDraggingText: false,
+
+                fontWeights: [
+                    { value: 100, name: 'Thin' },
+                    { value: 300, name: 'Light' },
+                    { value: 400, name: 'Normal' },
+                    { value: 500, name: 'Medium' },
+                    { value: 600, name: 'Semi Bold' },
+                    { value: 700, name: 'Bold' },
+                    { value: 900, name: 'Black' },
                 ],
 
                 textPositions: [
@@ -692,6 +761,10 @@
                     // Comparison drag events
                     document.addEventListener('mousemove', (e) => this.handleComparisonDrag(e));
                     document.addEventListener('mouseup', () => this.stopComparisonDrag());
+
+                    // Text drag events
+                    document.addEventListener('mousemove', (e) => this.handleTextDrag(e));
+                    document.addEventListener('mouseup', () => this.stopTextDrag());
 
                     // Keyboard shortcuts
                     document.addEventListener('keydown', (e) => this.handleKeyboard(e));
@@ -1180,6 +1253,11 @@
                 },
 
                 resetAdjustments() {
+                    const hadChanges = this.adjustments.brightness !== 0 ||
+                        this.adjustments.contrast !== 0 ||
+                        this.adjustments.saturation !== 0 ||
+                        this.adjustments.filter !== null;
+
                     this.adjustments = {
                         brightness: 0,
                         contrast: 0,
@@ -1189,6 +1267,9 @@
                         shadows: 0,
                         highlights: 0,
                         vibrance: 0,
+                        vignette: 0,
+                        sharpness: 0,
+                        grain: 0,
                         rotation: 0,
                         flipH: false,
                         flipV: false,
@@ -1197,6 +1278,9 @@
                     };
                     if (this.currentImage) {
                         this.loadImageToCanvas(this.currentImage.url);
+                        if (hadChanges) {
+                            this.showToast('Ajustes reseteados', 'info');
+                        }
                     }
                 },
 
@@ -1208,6 +1292,9 @@
                         // Generate thumbnail from current canvas state
                         const thumbnail = this.generateThumbnail();
 
+                        // Get full canvas image as base64 (this is what user sees)
+                        const canvasImage = this.canvas.toDataURL('image/jpeg', 0.92);
+
                         const res = await fetch(`/images/${this.currentImage.id}/process`, {
                             method: 'POST',
                             headers: {
@@ -1218,6 +1305,7 @@
                                 adjustments: this.adjustments,
                                 save_version: true,
                                 thumbnail: thumbnail,
+                                canvas_image: canvasImage,
                             }),
                         });
 
@@ -1252,8 +1340,32 @@
                 },
 
                 async loadVersion(version) {
-                    this.adjustments = { ...this.adjustments, ...version.adjustments };
+                    // Reload original image first
+                    await this.loadImageToCanvas(this.currentImage.url);
+
+                    // Apply the version's adjustments
+                    this.adjustments = {
+                        brightness: 0,
+                        contrast: 0,
+                        saturation: 0,
+                        exposure: 0,
+                        temperature: 0,
+                        shadows: 0,
+                        highlights: 0,
+                        vibrance: 0,
+                        vignette: 0,
+                        sharpness: 0,
+                        grain: 0,
+                        rotation: 0,
+                        flipH: false,
+                        flipV: false,
+                        filter: null,
+                        crop: null,
+                        ...version.adjustments
+                    };
+
                     this.applyAdjustments();
+                    this.showToast(`Versión ${version.version} cargada`, 'info');
                 },
 
                 // Comparison
@@ -1274,6 +1386,55 @@
                 stopComparisonDrag() {
                     this.isDraggingComparison = false;
                     document.body.style.userSelect = '';
+                },
+
+                // Text dragging
+                startTextDrag(e) {
+                    if (!this.textPreviewActive || this.activeTab !== 'text' || !this.textOverlay.content) return;
+
+                    e.preventDefault();
+                    this.isDraggingText = true;
+                    document.body.style.userSelect = 'none';
+
+                    // Get canvas position relative to viewport
+                    const rect = this.canvas.getBoundingClientRect();
+                    const scaleX = this.canvas.width / rect.width;
+                    const scaleY = this.canvas.height / rect.height;
+
+                    // Calculate position in canvas coordinates
+                    const x = (e.clientX - rect.left) * scaleX;
+                    const y = (e.clientY - rect.top) * scaleY;
+
+                    this.textOverlay.customX = x;
+                    this.textOverlay.customY = y;
+                    this.textOverlay.position = 'custom';
+                    this.renderTextPreview();
+                },
+
+                handleTextDrag(e) {
+                    if (!this.isDraggingText) return;
+
+                    e.preventDefault();
+                    const rect = this.canvas.getBoundingClientRect();
+                    const scaleX = this.canvas.width / rect.width;
+                    const scaleY = this.canvas.height / rect.height;
+
+                    const x = (e.clientX - rect.left) * scaleX;
+                    const y = (e.clientY - rect.top) * scaleY;
+
+                    // Clamp to canvas bounds with padding
+                    const padding = 10;
+                    this.textOverlay.customX = Math.max(padding, Math.min(this.canvas.width - padding, x));
+                    this.textOverlay.customY = Math.max(padding, Math.min(this.canvas.height - padding, y));
+
+                    this.renderTextPreview();
+                },
+
+                stopTextDrag() {
+                    if (this.isDraggingText) {
+                        this.isDraggingText = false;
+                        document.body.style.userSelect = '';
+                    }
                 },
 
                 // Text overlay
@@ -1301,72 +1462,188 @@
 
                     if (!text.content) return;
 
-                    // Save current state
-                    ctx.save();
-
-                    // Apply blend mode and opacity
-                    ctx.globalCompositeOperation = text.blendMode;
-                    ctx.globalAlpha = text.opacity / 100;
+                    // Split text into lines
+                    const lines = text.content.split('\n');
+                    const lineHeightPx = text.size * text.lineHeight;
 
                     // Build font string
                     let fontStyle = '';
                     if (text.italic) fontStyle += 'italic ';
-                    if (text.bold) fontStyle += 'bold ';
-                    fontStyle += `${text.size}px "${text.font}"`;
+                    fontStyle += `${text.weight} ${text.size}px "${text.font}"`;
 
+                    ctx.save();
                     ctx.font = fontStyle;
-                    ctx.fillStyle = text.color;
-                    ctx.textBaseline = 'middle';
+                    ctx.globalAlpha = text.opacity / 100;
+
+                    // Calculate total text block dimensions
+                    let maxWidth = 0;
+                    for (const line of lines) {
+                        const w = this.measureTextWithSpacing(ctx, line, text.letterSpacing);
+                        if (w > maxWidth) maxWidth = w;
+                    }
+                    const totalHeight = lines.length * lineHeightPx;
 
                     // Calculate position
-                    const padding = 20;
-                    const metrics = ctx.measureText(text.content);
-                    const textWidth = metrics.width;
-                    const textHeight = text.size;
-
-                    let x, y;
+                    const padding = 30;
                     const pos = text.position;
+                    let baseX, baseY;
 
-                    // Horizontal
-                    if (pos.includes('left')) {
-                        ctx.textAlign = 'left';
-                        x = padding;
-                    } else if (pos.includes('right')) {
-                        ctx.textAlign = 'right';
-                        x = canvas.width - padding;
-                    } else {
+                    // Custom position (dragged by user)
+                    if (pos === 'custom' && text.customX !== null && text.customY !== null) {
                         ctx.textAlign = 'center';
-                        x = canvas.width / 2;
-                    }
-
-                    // Vertical
-                    if (pos.includes('top')) {
-                        y = padding + textHeight / 2;
-                    } else if (pos.includes('bottom')) {
-                        y = canvas.height - padding - textHeight / 2;
+                        baseX = text.customX;
+                        baseY = text.customY - (totalHeight / 2) + (lineHeightPx / 2);
                     } else {
-                        y = canvas.height / 2;
+                        // Horizontal alignment
+                        if (pos.includes('left')) {
+                            ctx.textAlign = 'left';
+                            baseX = padding;
+                        } else if (pos.includes('right')) {
+                            ctx.textAlign = 'right';
+                            baseX = canvas.width - padding;
+                        } else {
+                            ctx.textAlign = 'center';
+                            baseX = canvas.width / 2;
+                        }
+
+                        // Vertical position
+                        if (pos.includes('top')) {
+                            baseY = padding + text.size / 2;
+                        } else if (pos.includes('bottom')) {
+                            baseY = canvas.height - padding - totalHeight + lineHeightPx / 2;
+                        } else {
+                            baseY = (canvas.height - totalHeight) / 2 + lineHeightPx / 2;
+                        }
                     }
 
-                    // Shadow (only if blend mode is normal for best effect)
-                    if (text.shadow && text.blendMode === 'normal') {
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-                        ctx.shadowBlur = 4;
-                        ctx.shadowOffsetX = 2;
-                        ctx.shadowOffsetY = 2;
+                    ctx.textBaseline = 'middle';
+
+                    // Draw each line
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i];
+                        const y = baseY + i * lineHeightPx;
+
+                        // Emboss effect (draw offset shadows for 3D look)
+                        if (text.emboss) {
+                            // Light edge (top-left)
+                            ctx.save();
+                            ctx.globalAlpha = (text.opacity / 100) * 0.6;
+                            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                            this.drawTextLine(ctx, line, baseX - 1, y - 1, text.letterSpacing);
+                            ctx.restore();
+
+                            // Dark edge (bottom-right)
+                            ctx.save();
+                            ctx.globalAlpha = (text.opacity / 100) * 0.6;
+                            ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                            this.drawTextLine(ctx, line, baseX + 1, y + 1, text.letterSpacing);
+                            ctx.restore();
+                        }
+
+                        // Shadow
+                        if (text.shadow && !text.emboss) {
+                            ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+                            ctx.shadowBlur = 4;
+                            ctx.shadowOffsetX = 2;
+                            ctx.shadowOffsetY = 2;
+                        }
+
+                        // Image texture fill
+                        if (text.imageTexture && this.originalImageData) {
+                            // Create pattern from original image
+                            const patternCanvas = document.createElement('canvas');
+                            patternCanvas.width = this.originalImageData.width;
+                            patternCanvas.height = this.originalImageData.height;
+                            const patternCtx = patternCanvas.getContext('2d');
+                            patternCtx.putImageData(this.originalImageData, 0, 0);
+                            const pattern = ctx.createPattern(patternCanvas, 'no-repeat');
+                            ctx.fillStyle = pattern;
+                        } else {
+                            ctx.fillStyle = text.color;
+                        }
+
+                        // Outline (stroke)
+                        if (text.outline) {
+                            ctx.strokeStyle = text.outlineColor;
+                            ctx.lineWidth = text.outlineWidth;
+                            ctx.lineJoin = 'round';
+                            this.strokeTextLine(ctx, line, baseX, y, text.letterSpacing);
+                        }
+
+                        // Fill text
+                        this.drawTextLine(ctx, line, baseX, y, text.letterSpacing);
+
+                        // Reset shadow for next iteration
+                        ctx.shadowColor = 'transparent';
+                        ctx.shadowBlur = 0;
+                        ctx.shadowOffsetX = 0;
+                        ctx.shadowOffsetY = 0;
                     }
 
-                    // Draw text
-                    ctx.fillText(text.content, x, y);
-
-                    // Restore state (resets blend mode, opacity, shadow, etc.)
                     ctx.restore();
 
                     if (permanent) {
-                        // Update originalImageData to include the text
                         this.originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                         this.comparisonSrc = canvas.toDataURL('image/jpeg', 0.9);
                     }
+                },
+
+                // Helper to measure text width with letter spacing
+                measureTextWithSpacing(ctx, text, spacing) {
+                    if (spacing === 0) return ctx.measureText(text).width;
+                    let width = 0;
+                    for (let i = 0; i < text.length; i++) {
+                        width += ctx.measureText(text[i]).width + (i < text.length - 1 ? spacing : 0);
+                    }
+                    return width;
+                },
+
+                // Helper to draw text with letter spacing
+                drawTextLine(ctx, text, x, y, spacing) {
+                    if (spacing === 0) {
+                        ctx.fillText(text, x, y);
+                        return;
+                    }
+
+                    const align = ctx.textAlign;
+                    const totalWidth = this.measureTextWithSpacing(ctx, text, spacing);
+
+                    let startX = x;
+                    if (align === 'center') startX = x - totalWidth / 2;
+                    else if (align === 'right') startX = x - totalWidth;
+
+                    ctx.save();
+                    ctx.textAlign = 'left';
+                    let currentX = startX;
+                    for (let i = 0; i < text.length; i++) {
+                        ctx.fillText(text[i], currentX, y);
+                        currentX += ctx.measureText(text[i]).width + spacing;
+                    }
+                    ctx.restore();
+                },
+
+                // Helper to stroke text with letter spacing
+                strokeTextLine(ctx, text, x, y, spacing) {
+                    if (spacing === 0) {
+                        ctx.strokeText(text, x, y);
+                        return;
+                    }
+
+                    const align = ctx.textAlign;
+                    const totalWidth = this.measureTextWithSpacing(ctx, text, spacing);
+
+                    let startX = x;
+                    if (align === 'center') startX = x - totalWidth / 2;
+                    else if (align === 'right') startX = x - totalWidth;
+
+                    ctx.save();
+                    ctx.textAlign = 'left';
+                    let currentX = startX;
+                    for (let i = 0; i < text.length; i++) {
+                        ctx.strokeText(text[i], currentX, y);
+                        currentX += ctx.measureText(text[i]).width + spacing;
+                    }
+                    ctx.restore();
                 },
 
                 applyTextToCanvas() {
@@ -1384,6 +1661,9 @@
 
                 clearTextPreview() {
                     this.textOverlay.content = '';
+                    this.textOverlay.position = 'center';
+                    this.textOverlay.customX = null;
+                    this.textOverlay.customY = null;
                     this.textPreviewActive = false;
                     this.applyAdjustments(); // Restore canvas without text
                 },
@@ -1502,9 +1782,13 @@
                             a.download = `${this.currentImage.name}_edited.${this.exportFormat}`;
                             a.click();
                             URL.revokeObjectURL(url);
+                            this.showToast('Imagen descargada', 'success');
+                        } else {
+                            this.showToast('Error al descargar la imagen', 'error');
                         }
                     } catch (e) {
                         console.error('Download error:', e);
+                        this.showToast('Error al descargar la imagen', 'error');
                     }
 
                     this.loading = false;
