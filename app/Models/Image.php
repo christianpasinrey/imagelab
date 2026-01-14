@@ -20,10 +20,14 @@ class Image extends Model implements HasMedia
         'tags',
         'session_id',
         'original_filename',
+        'is_published',
+        'published_at',
     ];
 
     protected $casts = [
         'tags' => 'array',
+        'is_published' => 'boolean',
+        'published_at' => 'datetime',
     ];
 
     protected static function boot()

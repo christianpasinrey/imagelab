@@ -25,7 +25,7 @@ class ImageController extends Controller
             'tag' => 'nullable|string|max:50',
         ]);
 
-        $query = Image::with('media')->latest();
+        $query = Image::with('media')->where('is_published', true)->latest();
 
         // Search by title or tags (Eloquent protects against SQL injection)
         if ($search = $request->get('q')) {
@@ -55,8 +55,9 @@ class ImageController extends Controller
 
         $images = $query->paginate(24);
 
-        // Get popular tags (sanitized on input, safe to display)
-        $popularTags = Image::whereNotNull('tags')
+        // Get popular tags (only from published images)
+        $popularTags = Image::where('is_published', true)
+            ->whereNotNull('tags')
             ->pluck('tags')
             ->flatten()
             ->countBy()
@@ -375,6 +376,44 @@ class ImageController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function publish(Request $request, Image $image): JsonResponse
+    {
+        $sessionId = $request->session()->getId();
+
+        if (!$image->canEdit($sessionId)) {
+            return response()->json(['error' => 'No tienes permiso para publicar esta imagen'], 403);
+        }
+
+        $image->update([
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'image' => $this->formatImageResponse($image->fresh(), $sessionId),
+        ]);
+    }
+
+    public function unpublish(Request $request, Image $image): JsonResponse
+    {
+        $sessionId = $request->session()->getId();
+
+        if (!$image->canEdit($sessionId)) {
+            return response()->json(['error' => 'No tienes permiso para despublicar esta imagen'], 403);
+        }
+
+        $image->update([
+            'is_published' => false,
+            'published_at' => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'image' => $this->formatImageResponse($image->fresh(), $sessionId),
+        ]);
+    }
+
     private function formatImageResponse(Image $image, ?string $sessionId = null): array
     {
         $originalMedia = $image->getFirstMedia('original');
@@ -390,6 +429,7 @@ class ImageController extends Controller
             'thumb' => $originalMedia?->getUrl('thumb'),
             'preview' => $originalMedia?->getUrl('preview'),
             'views' => $image->views_count,
+            'is_published' => $image->is_published,
             'can_edit' => $sessionId ? $image->canEdit($sessionId) : false,
             'created_at' => $image->created_at->format('d/m/Y H:i'),
         ];

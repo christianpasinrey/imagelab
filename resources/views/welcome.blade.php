@@ -595,6 +595,17 @@
         @endif
     </section>
 
+    <!-- Footer -->
+    <footer style="padding: 40px 24px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); margin-top: 60px;">
+        <div style="display: flex; justify-content: center; gap: 24px; margin-bottom: 16px;">
+            <a href="/terms" style="color: rgba(255,255,255,0.4); font-size: 0.875rem; text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='rgba(255,255,255,0.7)'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">Términos de Uso</a>
+            <a href="/privacy" style="color: rgba(255,255,255,0.4); font-size: 0.875rem; text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='rgba(255,255,255,0.7)'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">Política de Privacidad</a>
+        </div>
+        <p style="color: rgba(255,255,255,0.3); font-size: 0.75rem;">
+            © {{ date('Y') }} Wallrd. Tus imágenes, tu creatividad.
+        </p>
+    </footer>
+
     <script>
         // Masonry layout calculation
         function resizeMasonryItem(item) {

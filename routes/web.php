@@ -43,4 +43,17 @@ Route::prefix('images')->name('images.')->group(function () {
     Route::delete('{image}', [ImageController::class, 'destroy'])
         ->middleware('throttle:10,1')
         ->name('destroy');
+
+    // Publish/Unpublish: max 20 per minute
+    Route::post('{image}/publish', [ImageController::class, 'publish'])
+        ->middleware('throttle:20,1')
+        ->name('publish');
+
+    Route::post('{image}/unpublish', [ImageController::class, 'unpublish'])
+        ->middleware('throttle:20,1')
+        ->name('unpublish');
 });
+
+// Legal pages
+Route::view('/terms', 'legal.terms')->name('terms');
+Route::view('/privacy', 'legal.privacy')->name('privacy');

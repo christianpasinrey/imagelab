@@ -206,8 +206,11 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                         </svg>
                         <span x-text="currentImage?.title || currentImage?.name"></span>
-                        <template x-if="canEdit">
-                            <span class="px-2.5 py-1 text-xs rounded-full font-medium" style="background: rgba(34, 197, 94, 0.15); color: #4ade80;">Editable</span>
+                        <template x-if="currentImage?.is_published">
+                            <span class="px-2.5 py-1 text-xs rounded-full font-medium" style="background: rgba(34, 197, 94, 0.15); color: #4ade80;">Publicada</span>
+                        </template>
+                        <template x-if="canEdit && !currentImage?.is_published">
+                            <span class="px-2.5 py-1 text-xs rounded-full font-medium" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24;">Borrador</span>
                         </template>
                     </div>
                 </template>
@@ -219,6 +222,27 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
                     </svg>
                     Subir Imagen
+                </button>
+                <!-- Publish/Unpublish Button -->
+                <button x-show="currentImage && canEdit && !currentImage.is_published" @click="publishImage()"
+                    :disabled="publishing"
+                    class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white;">
+                    <svg x-show="!publishing" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <svg x-show="publishing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span x-text="publishing ? 'Publicando...' : 'Publicar'"></span>
+                </button>
+                <button x-show="currentImage && canEdit && currentImage.is_published" @click="unpublishImage()"
+                    :disabled="publishing"
+                    class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all glass-card hover:border-yellow-500/50 flex items-center gap-2" style="color: rgba(255,255,255,0.8);">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                    </svg>
+                    Despublicar
                 </button>
                 <button @click="showExportModal = true" x-show="currentImage || sourceImage"
                     class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all glass-card hover:border-purple-500/50" style="color: rgba(255,255,255,0.8);" title="Exportar imagen [Ctrl+E]">
@@ -1028,6 +1052,7 @@
                 showUploadModal: false,
                 showExportModal: false,
                 uploading: false,
+                publishing: false,
                 uploadProgress: 0,
                 dragOver: false,
                 uploadTitle: '',
@@ -2591,6 +2616,68 @@
                         console.error('Delete error:', e);
                         this.showToast('Error al eliminar la imagen', 'error');
                     }
+                },
+
+                async publishImage() {
+                    if (!this.currentImage || !this.canEdit) return;
+                    this.publishing = true;
+
+                    try {
+                        const res = await fetch(`/images/${this.currentImage.id}/publish`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            },
+                        });
+
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.currentImage = data.image;
+                            // Update in images list too
+                            const idx = this.images.findIndex(img => img.id === this.currentImage.id);
+                            if (idx !== -1) this.images[idx] = data.image;
+                            this.showToast('Imagen publicada en el mural', 'success');
+                        } else {
+                            this.showToast('Error al publicar la imagen', 'error');
+                        }
+                    } catch (e) {
+                        console.error('Publish error:', e);
+                        this.showToast('Error al publicar la imagen', 'error');
+                    }
+
+                    this.publishing = false;
+                },
+
+                async unpublishImage() {
+                    if (!this.currentImage || !this.canEdit) return;
+                    this.publishing = true;
+
+                    try {
+                        const res = await fetch(`/images/${this.currentImage.id}/unpublish`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            },
+                        });
+
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.currentImage = data.image;
+                            // Update in images list too
+                            const idx = this.images.findIndex(img => img.id === this.currentImage.id);
+                            if (idx !== -1) this.images[idx] = data.image;
+                            this.showToast('Imagen retirada del mural público', 'info');
+                        } else {
+                            this.showToast('Error al despublicar la imagen', 'error');
+                        }
+                    } catch (e) {
+                        console.error('Unpublish error:', e);
+                        this.showToast('Error al despublicar la imagen', 'error');
+                    }
+
+                    this.publishing = false;
                 },
 
                 async downloadImage() {
